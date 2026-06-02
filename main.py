@@ -83,7 +83,7 @@ def get_current_mouse_state():
 # 隱藏滑鼠
 pygame.mouse.set_visible(False)
 
-pygame.mixer.music.play(-1)  # 這裡決定要不要播放背景音樂
+# pygame.mixer.music.play(-1)  # 這裡決定要不要播放背景音樂
 
 while config.running:
     config.last_game_state = config.game_state
@@ -95,11 +95,11 @@ while config.running:
 
     config.runed_time = pygame.time.get_ticks()
     # print(f"DEBUG: Current State = {config.game_state}")
-    screen_text = f"Escape Them! v1.6.7 - {config.game_state.replace('_', ' ')}"
+    screen_text = f"Escape Them! v1.6.7.2 - {config.game_state.replace('_', ' ')}"
     if config.game_state.startswith("setting_p"):
-        screen_text = f"Escape Them! v1.6.7 - setting p{config.game_state.replace('settings_p', '')} / 3"
+        screen_text = f"Escape Them! v1.6.7.2 - setting p{config.game_state.replace('settings_p', '')} / 3"
     if config.game_state.startswith("upgrade_p"):
-        screen_text = f"Escape Them! v1.6.7 - upgrade p{config.game_state.replace('upgrade_p', '')} / {len({**config.UPGRADE_SURVIVAL, **config.UPGRADE_COMBAT})}"
+        screen_text = f"Escape Them! v1.6.7.2 - upgrade p{config.game_state.replace('upgrade_p', '')} / {len({**config.UPGRADE_SURVIVAL, **config.UPGRADE_COMBAT})}"
     events = pygame.event.get()
     keys = pygame.key.get_pressed()
     mouse_pos, mouse_buttons = get_current_mouse_state()
@@ -507,10 +507,10 @@ while config.running:
 
         if countdown >= 1:
             countdown_text = str(int(countdown))
-            screen_text = f"Escape Them! v1.6.7 - {countdown}!"
+            screen_text = f"Escape Them! v1.6.7.2 - {countdown}!"
         elif countdown >= 0:
             countdown_text = "GO!"
-            screen_text = "Escape Them! v1.6.7 - GO!"
+            screen_text = "Escape Them! v1.6.7.2 - GO!"
         else:
             tool.sec_timer(update=False)
             tool.reset_timer()
@@ -526,7 +526,7 @@ while config.running:
                 config.game_state = "pause"
     # 主遊戲程式
     elif config.game_state == "playing":
-        screen_text = "Escape Them! v1.6.7 - Escaping"
+        screen_text = "Escape Them! v1.6.7.2 - Escaping"
         screen.fill(
             tool.Colors.two_color_wave(config.world_bgc[config.current_world_key][0], config.world_bgc[config.current_world_key][1], 1)
         )
@@ -552,20 +552,27 @@ while config.running:
                 angle = math.atan2(dy, dx)
 
                 # 產生新子彈
-                new_bullet = all_objs.Player_Bullet(config.player_rect.centerx, config.player_rect.centery, angle)
+                new_bullet = all_objs.PlayerBullet(config.player_rect.centerx, config.player_rect.centery, angle)
                 config.player_bullets.append(new_bullet)
                 config.last_shot_time = config.runed_time
 
         for p_bullet in config.player_bullets[:]:  # 使用 [:] 副本以便在迴圈中刪除
             pb_rect = p_bullet.update()
             if not p_bullet.active:
-                config.player_bullets.remove(p_bullet)
-            else:
-                p_bullet.draw(screen)
+                if p_bullet in config.player_bullets:
+                    config.player_bullets.remove(p_bullet)
+                continue
+            for ob in config.current_setup.get("obstacles", []):
+                ob_rect = ob.get_rect()
+                if pb_rect.colliderect(ob_rect) and ob.mode == "attack" and "player_bullet" in ob.can_block_thing:
+                    p_bullet.active = False
+                    if p_bullet in config.player_bullets:
+                        config.player_bullets.remove(p_bullet)
+                    break
             for enemy in config.current_setup.get("enemies", []):  # 假設你的敵人清單叫 enemy_list
                 e_rect = pygame.Rect(enemy.x, enemy.y, enemy.width, enemy.height)
 
-                if all([pb_rect.colliderect(e_rect), enemy.show, "chaser" not in enemy.types, enemy.mode == "attack"]):
+                if all([pb_rect.colliderect(e_rect), enemy.show, enemy.current_movement != "chaser", enemy.mode == "attack"]):
                     # 撞到了！
                     if p_bullet in config.player_bullets:
                         config.player_bullets.remove(p_bullet)  # 子彈消失
@@ -581,6 +588,8 @@ while config.running:
                     e_bullet.is_exploding = True
                     config.shoot_point += config.now_skills.get("p19", 0) * 2
                     break
+            if p_bullet.active:
+                p_bullet.draw(screen)
 
         # 怪物特殊處理(包含怪物分裂)
         new_enemies = []
@@ -629,7 +638,7 @@ while config.running:
         config.current_setup["enemies"].extend(new_enemies)
 
         # 怪物碰撞
-        config.buffer_duration = config.now_skills["p5"] * config.buffer_duration_buff
+        config.buffer_duration = config.now_skills["p5"] * config.skin_buffs["buffer_duration"]
         for enemy in config.current_setup.get("enemies", []):
 
             # 處理死亡移除
@@ -652,7 +661,7 @@ while config.running:
                     and config.player_rect.colliderect(e_rect)
                     and config.current_time_sec - config.last_hit_time > config.invincible_duration
                 ):
-                    damage_taken = int(enemy.damage * config.enemy_damage_buff * config.skin_enemy_damage_buff)
+                    damage_taken = int(enemy.damage * config.enemy_damage_buff * config.skin_buffs["enemy_damage"])
                     damage_multiplier, text_color, text_content, dodged = config.calculate_damage(damage_taken)
 
                     if not dodged:
@@ -690,7 +699,7 @@ while config.running:
             cannon.draw(screen, config.offset_x, config.offset_y, config.current_time_ms, player_rect)
         # 子彈更新與繪製
         for bullet in config.bullet_list[:]:
-            status, b_rect = bullet.update(player_rect)
+            status, b_rect = bullet.update(player_rect, config.current_setup.get("obstacles", []))
 
             if status == "REMOVE":
                 config.bullet_list.remove(bullet)
@@ -712,7 +721,7 @@ while config.running:
                 # 4. 執行扣血與特效 (如果觸發成功且不在無敵時間)
                 if trigger_damage and config.current_time_sec - config.last_hit_time > config.invincible_duration:
                     # 計算傷害 (根據你的公式)
-                    damage_taken = int(bullet.damage * config.enemy_damage_buff * config.skin_enemy_damage_buff)
+                    damage_taken = int(bullet.damage * config.enemy_damage_buff * config.skin_buffs["enemy_damage"])
                     damage_multiplier, text_color, text_content, dodged = config.calculate_damage(damage_taken)
 
                     if not dodged:
@@ -776,9 +785,39 @@ while config.running:
             if config.trying_to_touch_player:
                 move_vec = player_vec - coin_vec
                 if move_vec.length() > 0:
-                    # 速度可以設為 5，或是根據玩家速度調整
-                    config.now_treasure["x"] += move_vec.x * (0.05 * config.now_skills["p10"])
-                    config.now_treasure["y"] += move_vec.y * (0.05 * config.now_skills["p10"])
+                    # 🌟 1. 先計算出這一格原本預計要移動的向量（速度增量）
+                    dx = move_vec.x * (0.05 * config.now_skills["p10"])
+                    dy = move_vec.y * (0.05 * config.now_skills["p10"])
+
+                    # 🌟 2. 為了做精準的矩形碰撞判定，我們建立一個跟錢幣一模一樣的臨時虛擬 Rect
+                    # 💡 提示：根據你畫面的 +15 偏移量，這裡大小給 (30, 30)，請根據你寶藏的實際寬高微調
+                    coin_rect = pygame.Rect(config.now_treasure["x"], config.now_treasure["y"], 30, 30)
+
+                    # 🚧 攔截防線 A：嘗試在 X 軸前進
+                    coin_rect.x += dx
+                    x_collision = False
+                    for ob in config.current_setup.get("obstacles", []):
+                        # 💡 核心防線：如果這個障礙物要擋錢幣，且虛擬矩形撞到了它
+                        if "coin" in ob.can_block_thing and coin_rect.colliderect(ob.rect) and ob.mode == "attack":
+                            x_collision = True
+                            break
+                    if not x_collision:
+                        # 如果 X 軸方向沒有被狗屎擋住，才真正允許 X 軸移動
+                        config.now_treasure["x"] += dx
+                    else:
+                        # 💡 提示：如果撞牆了，也可以在這裡把 coin_rect.x 退回原位
+                        coin_rect.x -= dx
+
+                    # 🚧 攔截防線 B：嘗試在 Y 軸前進
+                    coin_rect.y += dy
+                    y_collision = False
+                    for ob in config.current_setup.get("obstacles", []):
+                        if "coin" in ob.can_block_thing and coin_rect.colliderect(ob.rect) and ob.mode == "attack":
+                            y_collision = True
+                            break
+                    if not y_collision:
+                        # 如果 Y 軸方向安全，才真正允許 Y 軸移動
+                        config.now_treasure["y"] += dy
                 pygame.draw.line(
                     screen,
                     (*tool.Colors.GOLD, 150),  # 金色 (或是用 tool.Colors.GOLD)
@@ -811,7 +850,9 @@ while config.running:
                 else:
                     asset_manager.sounds["coin"].play()
                 # 1. 計算分數
-                min_p, max_p = (add * config.coin_multiplier * config.now_skills["p12"] for add in config.now_treasure["add_points"])
+                min_p, max_p = (
+                    add * config.skin_buffs["coin_multiplier"] * config.now_skills["p12"] for add in config.now_treasure["add_points"]
+                )
                 base_val = random.uniform(min_p, max_p)
 
                 config.treasure_points += base_val
@@ -829,7 +870,7 @@ while config.running:
                 reduction = config.now_skills["p2"]
                 config.now_treasure["next_spawn_at"] = config.current_time_sec + max(2, int(cooldown - reduction))
             for enemy in config.current_setup.get("enemies", []):
-                if "eat_coin" in enemy.types and enemy.mode == "attack" and enemy.show:
+                if enemy.current_movement == "eat_coin" and enemy.mode == "attack" and enemy.show:
                     cooldown = random.randint(*config.next_spawn_range)  # type: ignore
                     reduction = config.now_skills["p2"]
                     e_rect = pygame.Rect(enemy.x, enemy.y, enemy.width, enemy.height)
@@ -838,6 +879,7 @@ while config.running:
                         config.now_treasure["next_spawn_at"] = config.current_time_sec + max(1, int(cooldown - reduction))
                         config.trying_to_touch_player = False
                         asset_manager.sounds["steal"].play()
+                        break
                     enemy.x = tool.num_range(0, config.WIDTH - enemy.width, enemy.x)
                     enemy.y = tool.num_range(0, config.HEIGHT - enemy.height, enemy.y)
 
@@ -935,7 +977,7 @@ while config.running:
             all_objs.show_text(screen, "DEBUG: INVINCIBLE ON", tool.Colors.RED, 10, 60, size=15)
 
         # 判斷是否在無敵時間內
-        is_invincible = (config.current_time_sec - config.last_hit_time) < config.invincible_duration * config.invincible_time_buff
+        is_invincible = (config.current_time_sec - config.last_hit_time) < config.invincible_duration * config.skin_buffs["invincible_time"]
 
         p_rect = pygame.Rect(player_rect.x - config.offset_x, player_rect.y - config.offset_y, player_rect.width, player_rect.height)
         # -- 繪製玩家 --
@@ -967,7 +1009,7 @@ while config.running:
         all_objs.show_text(screen, text_order[1], tool.Colors.WHITE, player_rect.centerx, base_y + 15, size=16, center=True)
         # 分數
         config.points = (
-            config.current_time_sec * config.points_multiplier + config.treasure_points
+            config.current_time_sec * config.skin_buffs["points_multiplier"] + config.treasure_points
         ) * config.gm_points_buff * config.now_skills["p3"] * config.current_setup.get("multiplier", 1) + config.shoot_point
         if config.selected_level == "level 3" and config.game_mode == "crazy":
             config.points *= 0.5
@@ -1143,7 +1185,7 @@ while config.running:
     # 1.AFK_error
     elif config.game_state == "afk_kick":
         screen.fill(tool.Colors.BLACK)
-        screen_text = "Escape Them! v1.6.7 - ERROR: 1011451"
+        screen_text = "Escape Them! v1.6.7.2 - ERROR: 1011451"
         # 畫一個紅色的警告框
         pygame.draw.rect(screen, tool.Colors.RED, (config.WIDTH // 2 - 250, 100, 500, 400))
         pygame.draw.rect(screen, tool.Colors.BLACK2, (config.WIDTH // 2 - 245, 95, 500, 400))
@@ -1183,7 +1225,7 @@ while config.running:
     # 2.game_state_error
     else:
         screen.fill(tool.Colors.BLACK)
-        screen_text = "Escape Them! v1.6.7 - ERROR: 2487145"
+        screen_text = "Escape Them! v1.6.7.2 - ERROR: 2487145"
         pygame.draw.rect(screen, tool.Colors.RED, (0, 100, 550, 450))
         pygame.draw.rect(screen, tool.Colors.BLACK2, (config.WIDTH // 2 - 270, 95, 550, 450))
         all_objs.show_text(

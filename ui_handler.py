@@ -336,7 +336,7 @@ class UIManager:
                     elif money_enough and not achieved_record:
                         display_text = f"Need {target_record}s record!"
                     elif not money_enough and not achieved_record:
-                        display_text = [f"Unlock for ${tool.num_to_KMBT(cost)}, ", f"Need {target_record}s record"]
+                        display_text = [f"Unlock for ${tool.num_to_KMBT(cost)}", f"Need {target_record}s record"]
                     else:
                         display_text = f"Unlock for ${tool.num_to_KMBT(cost)}!"
                     obj.change_base_text(display_text)
@@ -827,7 +827,7 @@ class UIManager:
                         elif money_enough and not achieved_record:
                             error_msg = f"Need {target_record}s record!"
                         elif not money_enough and not achieved_record:
-                            error_msg = [f"Unlock for ${tool.num_to_KMBT(cost)}, ", f"Need {target_record}s record"]
+                            error_msg = [f"Unlock for ${tool.num_to_KMBT(cost)}", f"Need {target_record}s record"]
                         else:
                             error_msg = f"Unlock for ${tool.num_to_KMBT(cost)}!"
                         err_list = [error_msg] if isinstance(error_msg, str) else error_msg
@@ -869,6 +869,10 @@ class UIManager:
                 config.from_pause = True
                 config.game_state = f"setting_p{self.setting_page}"
             if obj.name == "restart":
+                for e in config.current_setup["enemies"][:]:
+                    if e.is_split_enemy:
+                        config.current_setup["enemies"].remove(e)
+                config.current_time_ms, config.current_time_sec = 0, 0
                 self.clean_up_current_level_run()
                 config.game_state = "countdown"
             if obj.name == "menu":

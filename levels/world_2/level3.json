@@ -120,9 +120,169 @@
             "damage": 20,
             "type": "split",
             "split_enemies": 7
+        },
+        {
+            "show_time": 230,
+            "speed": 10,
+            "slow_speed": 1,
+            "color": "RED",
+            "damage": 20,
+            "type": "normal",
+            "size": 7
+        },
+        {
+            "show_time": 240,
+            "speed": 1,
+            "slow_speed": 1,
+            "color": "OLIVE",
+            "damage": 24,
+            "type": "random",
+            "size": 20
+        },
+        {
+            "show_time": 250,
+            "speed": 12,
+            "slow_speed": 7,
+            "color": "GREEN",
+            "damage": 20,
+            "type": [
+                "random",
+                "split",
+                "eat_coin"
+            ],
+            "split_enemies": 6
+        },
+        {
+            "show_time": 270,
+            "speed": 3,
+            "slow_speed": 2,
+            "color": "BLUE",
+            "damage": 20,
+            "type": [
+                "split",
+                "eat_coin"
+            ],
+            "split_enemies": 15,
+            "size": 15
+        },
+        {
+            "show_time": 280,
+            "speed": 20,
+            "slow_speed": 15,
+            "color": "LIGHT_RED",
+            "damage": 15,
+            "type": [
+                "sprint",
+                "split"
+            ],
+            "split_enemies": 6
+        },
+        {
+            "show_time": 290,
+            "speed": 5,
+            "slow_speed": 3,
+            "color": "ORANGE",
+            "damage": 25,
+            "type": [
+                "split",
+                "chaser",
+                "sprint"
+            ],
+            "split_enemies": 8
+        },
+        {
+            "show_time": 300,
+            "speed": 8,
+            "slow_speed": 5,
+            "color": "BLACK",
+            "damage": 23,
+            "type": [
+                "split",
+                "random"
+            ],
+            "split_enemies": 12
+        },
+        {
+            "show_time": 310,
+            "speed": 5,
+            "slow_speed": 3,
+            "color": "GRAY",
+            "damage": 30,
+            "type": "split",
+            "split_enemies": 15,
+            "size": 30
+        },
+        {
+            "show_time": 320,
+            "speed": 10,
+            "slow_speed": 7,
+            "color": "PURPLE",
+            "damage": 18,
+            "type": "split",
+            "split_enemies": 10,
+            "size": 12
+        },
+        {
+            "show_time": 325,
+            "speed": 10,
+            "slow_speed": 7,
+            "color": "CHARTREUSE",
+            "damage": 25,
+            "type": "split",
+            "split_enemies": 7
+        },
+        {
+            "show_time": 330,
+            "speed": 10,
+            "slow_speed": 7,
+            "color": "DARK_GREEN",
+            "damage": 25,
+            "type": "split",
+            "split_enemies": 8
+        },
+        {
+            "show_time": 330,
+            "speed": 4,
+            "slow_speed": 3,
+            "color": "BROWN",
+            "damage": 20,
+            "type": "split",
+            "split_enemies": 7,
+            "size": 20
         }
     ],
-    "cannons": [],
+    "cannons": [
+        {
+            "show_time": 80,
+            "x": 700,
+            "y": 400,
+            "angle": 180,
+            "fire_rate": 5000,
+            "bullet_speed": 3,
+            "color": "CHARTREUSE",
+            "type": "normal"
+        },
+        {
+            "show_time": 200,
+            "x": 0,
+            "y": 150,
+            "angle": 30,
+            "fire_rate": 3000,
+            "bullet_speed": 7,
+            "color": "BLACK",
+            "type": "normal"
+        },
+        {
+            "show_time": 250,
+            "x": 0,
+            "y": 150,
+            "angle": 30,
+            "fire_rate": 3000,
+            "bullet_speed": 7,
+            "color": "BLACK",
+            "type": "track"
+        }
+    ],
     "obstacles": [
         {
             "show_time": 10,
@@ -139,6 +299,41 @@
             "width": 10,
             "height": 250,
             "color": "BLACK"
+        },
+        {
+            "show_time": 150,
+            "x": 250,
+            "y": 50,
+            "width": 10,
+            "height": 250,
+            "color": "GREEN",
+            "can_block_thing": [
+                "player",
+                "enemy",
+                "coin"
+            ]
+        },
+        {
+            "show_time": 200,
+            "x": 50,
+            "y": 290,
+            "width": 200,
+            "height": 10,
+            "color": "GREEN",
+            "can_block_thing": [
+                "player",
+                "enemy",
+                "coin"
+            ]
+        },
+        {
+            "show_time": 300,
+            "x": 260,
+            "y": 290,
+            "width": 140,
+            "height": 20,
+            "color": "LIGHT_RED",
+            "can_block_thing": "player"
         }
     ]
 }

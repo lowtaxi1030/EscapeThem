@@ -857,7 +857,7 @@ def get_skill_val(p_key):
     lvl = current_levels.get(p_key, 0)
 
     # 🌟 核心防禦：從 limits 字典裡，安全抓出玩家「當前正在遊玩的世界」的等級天花板
-    # 提示：config.select_world 代表目前選單選中的世界（或者是你遊戲關卡內用的 current_playing_world）
+    # 提示：select_world 代表目前選單選中的世界（或者是你遊戲關卡內用的 current_playing_world）
     limits_dict = cfg.get("limits", {})
     world_max = limits_dict.get(select_world, len(cfg["costs"]))
 
@@ -878,18 +878,22 @@ def update_skill():
 update_skill()
 
 
-def apply_skin_effects():
-    global player_speed_buff, points_multiplier, coin_multiplier, player_max_hp_buff, skin_enemy_damage_buff, buffer_duration_buff, invincible_time_buff, player_size_buff
+skin_buffs = {
+    "speed": 1.0,
+    "points_multiplier": 1.0,
+    "coin_multiplier": 1.0,
+    "max_hp": 1.0,
+    "enemy_damage": 1.0,
+    "enemy_spawn_speed": 1.0,
+    "buffer_duration": 1.0,
+    "invincible_time": 1.0,
+    "player_size": 1.0,
+}
 
-    # 先重置為基礎數值 (避免效果無限疊加)
-    player_speed_buff = 1.0
-    points_multiplier = 1.0
-    coin_multiplier = 1.0
-    player_max_hp_buff = 1.0
-    skin_enemy_damage_buff = 1.0
-    buffer_duration_buff = 1.0
-    invincible_time_buff = 1.0
-    player_size_buff = 1.0
+
+def apply_skin_effects():
+    for key in skin_buffs:
+        skin_buffs[key] = 1.0
 
     # 取得當前皮膚資訊
     skin_info = player_skins.get(current_player_color_name, {})
@@ -914,37 +918,42 @@ def apply_skin_effects():
         powers = [raw_powers]
         growths = [raw_growths]
 
+    skin_info = player_skins.get(current_player_color_name, {})
+    if not skin_info:
+        return
+
+    # 取得原始資料與等級
+    raw_effects = skin_info.get("effect", "none")
+    raw_powers = skin_info.get("base_power", 1)
+    raw_growths = skin_info.get("growth", 0)
+    level = skin_info.get("level", 1)
+
+    # 統一轉成列表 (維持你原本超讚的相容性設計)
+    effects = raw_effects if isinstance(raw_effects, list) else [raw_effects]
+    powers = raw_powers if isinstance(raw_powers, list) else [raw_powers]
+    growths = raw_growths if isinstance(raw_growths, list) else [raw_growths]
+
+    # 🌟 迴圈大瘦身
     for effect, base_p, grow in zip(effects, powers, growths, strict=False):
         final_power = base_p + (level - 1) * grow
-        if effect == "speed":
-            player_speed_buff *= final_power
-        elif effect == "points_multiplier":
-            points_multiplier *= final_power
-        elif effect == "coin_multiplier":
-            coin_multiplier *= final_power
-        elif effect == "points_coin_multiplier":
-            points_multiplier *= final_power
-            coin_multiplier *= final_power
-        elif effect == "max_hp":
-            player_max_hp_buff *= final_power
-        elif effect == "enemy_damage":
-            skin_enemy_damage_buff *= final_power
-            skin_enemy_damage_buff = tool.num_range(0.1, 1.0, skin_enemy_damage_buff)
-        elif effect == "enemy_spawn_speed":
-            buffer_duration_buff *= final_power
-        elif effect == "invincible_time":
-            invincible_time_buff *= final_power
-        elif effect == "player_size":
-            player_size_buff *= final_power
-            player_size_buff = tool.num_range(0.5, 5, player_size_buff)
-        # 格式
-        # elif effect == "":
-        #     pass
+
+        # 💡 特殊複合效果判定（如果是點數金幣雙拿，就分開注入）
+        if effect == "points_coin_multiplier":
+            skin_buffs["points_multiplier"] *= final_power
+            skin_buffs["coin_multiplier"] *= final_power
+
+        # 💡 一般效果：只要名字對得上，一行直接動態加乘！
+        elif effect in skin_buffs:
+            skin_buffs[effect] *= final_power
+
+    # 🌟 幾何範圍安全防線 (後置的數值邊界防護)
+    skin_buffs["enemy_damage"] = tool.num_range(0.1, None, skin_buffs["enemy_damage"])
+    skin_buffs["player_size"] = tool.num_range(0.5, 5.0, skin_buffs["player_size"])
 
 
 apply_skin_effects()
 
-buffer_duration = now_skills["p5"] * buffer_duration_buff
+buffer_duration = now_skills["p5"] * skin_buffs["buffer_duration"]
 
 offset_x, offset_y = 0, 0
 target_y = 0
@@ -1171,11 +1180,11 @@ def reset_game():
     invincible_duration = now_skills["p8"] / 1000
 
     # 玩家設定
-    player_size = now_skills["p4"] * player_size_buff
+    player_size = now_skills["p4"] * skin_buffs["player_size"]
     player_color, player_speed, current_player_speed = (
         now_player_skin,
-        (5 + now_skills["p1"]) * player_speed_buff,
-        (5 + now_skills["p1"]) * player_speed_buff,
+        (5 + now_skills["p1"]) * skin_buffs["speed"],
+        (5 + now_skills["p1"]) * skin_buffs["speed"],
     )
     player_rect = pygame.Rect(
         WIDTH // 2 - player_size // 2,
@@ -1190,7 +1199,7 @@ def reset_game():
 
     afk_timer = 0  # 累計閒置時間
     last_player_pos = [0, 0]  # 記錄上一次的位置
-    AFK_LIMIT = 40
+    AFK_LIMIT = 120
 
     points = 0
 
@@ -1207,7 +1216,7 @@ def reset_game():
 
     trying_to_touch_player = False
 
-    player_max_hp = int(now_skills["p6"] * player_max_hp_buff)
+    player_max_hp = int(now_skills["p6"] * skin_buffs["max_hp"])
     player_hp = player_max_hp
 
     change_dir_timer = 2  # 設定為兩秒
@@ -1282,6 +1291,7 @@ now_flash_color = tool.Colors.RED
 
 
 flash_width = 20
+
 
 def draw_screen_flash(color, total_time, max_alpha, flash_width):
     """

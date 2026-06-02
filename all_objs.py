@@ -609,7 +609,7 @@ class Enemy:
         self.bound_rect.x = self.x  # 同步給碰撞盒的 X
 
         for ob in obstacles:
-            if ob.mode == "attack" and ob.type != "invisible":
+            if ob.mode == "attack" and ob.type != "invisible" and "enemy" in ob.can_block_thing:
                 ob_rect = ob.get_rect()
 
                 # 如果水平方向戳到方塊
@@ -630,7 +630,7 @@ class Enemy:
         self.bound_rect.y = self.y  # 同步給碰撞盒的 Y
 
         for ob in obstacles:
-            if ob.mode == "attack" and ob.type != "invisible":
+            if ob.mode == "attack" and ob.type != "invisible" and "enemy" in ob.can_block_thing:
                 ob_rect = ob.get_rect()
 
                 # 如果垂直方向戳到方塊
@@ -752,7 +752,7 @@ class Enemy:
 
         self.bound_rect.x = self.x
         for ob in obstacles:
-            if ob.mode == "attack" and ob.can_collide:
+            if ob.mode == "attack" and ob.can_collide and "enemy" in ob.can_block_thing:
                 ob_rect = ob.get_rect()
 
                 if self.bound_rect.colliderect(ob_rect):
@@ -799,7 +799,7 @@ class Enemy:
             if ob.mode == "attack" and ob.can_collide:
                 ob_rect = ob.get_rect()
 
-                if self.bound_rect.colliderect(ob_rect):
+                if self.bound_rect.colliderect(ob_rect) and "enemy" in ob.can_block_thing:
                     hit_anything = True
                     hit_ob = True
 
@@ -941,20 +941,6 @@ class Cannon:
                 self.x = config.WIDTH - self.width
         elif self.type == "Y_move":
             c_rect_dy = self.move_speed * self.speed_buff * self.move_dir
-            self.y += c_rect_dy  # 🌟 讓精密小數點無限制累積！
-
-            # 為了讓底下的邊界判定準確，先暫時同步給 rect 檢查
-            self.rect.y = int(self.y)
-
-            # 🌟 撞牆邊界反彈：直接校正精密的 self.y 數值
-            if self.rect.top <= 0:
-                self.move_dir = 1
-                self.y = 0
-            elif self.rect.bottom >= config.HEIGHT:
-                self.move_dir = -1
-                self.y = config.HEIGHT - self.height
-        elif self.type == "Y_move":
-            c_rect_dy = self.move_speed * self.speed_buff * self.move_dir
             self.y += c_rect_dy
 
             self.rect.y = self.y
@@ -1021,41 +1007,45 @@ class Bullet:
         # 預先計算方向向量
         self.dx, self.dy = tool.get_direction(self.angle)
 
-    def update(self, player_rect):
-        # global player_hp, last_hit_time, shake_timer, shake_range, last_cure_time
-
+    def update(self, player_rect, obstacles):
         self.rect = pygame.Rect(self.x, self.y, 25, 25)
-        out_of_bounds = self.x < 0 or self.x > WIDTH - 25 or self.y < 0 or self.y > HEIGHT - 25
 
-        # 🌟 核心修改：如果已經被標記為爆炸（例如被打中），直接跳過飛行，進入爆炸動畫
+        # 🚧 1. 檢查出界與障礙物阻擋防線
+        out_of_bounds = self.x < 0 or self.x > WIDTH - 25 or self.y < 0 or self.y > HEIGHT - 25
+        for ob in obstacles:
+            if self.rect.colliderect(ob.rect) and ob.mode == "attack" and "bullet" in ob.can_block_thing:
+                out_of_bounds = True
+                break  # 💡 提示：撞到一個就夠了，直接 break 省效能
+
+        # 🌟 2. 核心修正：如果「這一幀剛好撞牆/出界」，直接在原地把它轉產成爆炸狀態！
+        if out_of_bounds and not self.is_exploding:
+            self.is_exploding = True
+
+        # 💥 3. 爆炸動畫狀態機（包含撞人、撞牆、出界後的後續連鎖反應）
         if self.is_exploding:
             if not self.has_triggered_explosion:
                 self.has_triggered_explosion = True
-                return "HIT", self.rect
+                return "HIT", self.rect  # 💥 撞擊第一幀，立刻回傳 HIT！
 
             if self.current_bom_radius <= self.bom_range:
                 self.current_bom_radius += 5
-                return "EXPLODING", self.rect
+                return "EXPLODING", self.rect  # 🎨 正在擴大爆炸圈
             else:
-                return "REMOVE", None
+                return "REMOVE", None  # 🧹 功成身退，清除子彈
 
-        # 正常飛行階段 (增加判斷：如果沒出界也沒撞人)
-        if not (out_of_bounds or self.collide_player):
-            # ... 原有的檢查撞玩家邏輯 ...
-            if player_rect.colliderect(self.rect):
-                self.collide_player = True
-                self.is_exploding = True  # 撞到人也標記爆炸
-                # (擊退邏輯保持不變)
-
-            # 位移計算
-            self.x += self.dx * self.speed * config.mode_speed_buff
-            self.y += self.dy * self.speed * config.mode_speed_buff
-            return "FLYING", self.rect
-
-        else:
-            # 這是原本的出界處理
+        # 🏃‍♂️ 4. 正常飛行階段（只有在完全沒事時才執行）
+        if player_rect.colliderect(self.rect):
+            self.collide_player = True
             self.is_exploding = True
-            return "FLYING", self.rect  # 這一幀先回傳飛行，下一幀會進入最上面的 is_exploding 判斷
+            # （這裡放你原本寫好的玩家擊退邏輯...）
+            return "HIT", self.rect  # 💡 提示：撞到玩家的當下一幀，也直接給它噴出 "HIT"！
+
+        # 正常的物理位移計算
+        self.x += self.dx * self.speed * config.mode_speed_buff
+        self.y += self.dy * self.speed * config.mode_speed_buff
+        self.rect = pygame.Rect(self.x, self.y, 25, 25)  # 💡 提示：位移完同步更新 rect，讓外面畫的位置最精準
+
+        return "FLYING", self.rect
 
     def draw(self, screen, offset_x, offset_y):
         if self.is_exploding:
@@ -1065,7 +1055,7 @@ class Bullet:
             pygame.draw.rect(screen, self.color, draw_rect)
 
 
-class Player_Bullet:
+class PlayerBullet:
     def __init__(self, x, y, angle):
         self.x = x
         self.y = y
@@ -1090,12 +1080,26 @@ class Player_Bullet:
 
 
 class Obstacle:
-    def __init__(self, x, y, width, height, show_time=-10, color=tool.Colors.GRAY, type="normal", can_collide=True):
+    def __init__(
+        self,
+        x: int | float,
+        y: int | float,
+        width: int,
+        height: int,
+        show_time: int = -10,
+        color: Color = tool.Colors.GRAY,
+        type="normal",
+        can_collide=True,
+        can_block_thing: str | list[str] = "all",
+    ):
         self.show_time = show_time
         self.rect = pygame.Rect(x, y, width, height)
         self.type = type
         self.can_collide = can_collide
         self.color = color
+        self.can_block_thing = [can_block_thing] if isinstance(can_block_thing, str) else can_block_thing
+        if "all" in self.can_block_thing:
+            self.can_block_thing = ["player", "enemy", "bullet", "coin", "player_bullet"]
 
         # 🌟 調整 1：把顏色的初始化直接放在出生時搞定，不用每幀都判斷
         if self.type in ["block_lava", "lava"]:
@@ -1221,6 +1225,7 @@ def _make_obstacle_list(level_data):
             height=o["height"],
             type=o.get("type", "normal"),
             color=tool.Colors.get_color(o["color"], tool.Colors.GRAY),  # 沒抓到就給灰色
+            can_block_thing=o.get("can_block_thing", "all"),
         )
 
         obstacle_list.append(obstacle_data)
