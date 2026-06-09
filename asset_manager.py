@@ -71,15 +71,15 @@ except FileNotFoundError as e:
     print(f"無法載入標題圖片{e}")
 # 錢幣用圖片
 try:
-    coin_wood_img_surface = pygame.image.load(str(IMG_PATH / "coin_img.png")).convert_alpha()
-    coin_wood_img_surface = pygame.transform.scale(coin_wood_img_surface, (100, 40))
-    coin_wood_img_loaded = True
+    coin_img_surface = pygame.image.load(str(IMG_PATH / "coin_img.png")).convert_alpha()
+    coin_img_surface = pygame.transform.scale(coin_img_surface, (100, 40))
+    coin_img_loaded = True
 
-    coin_wood_rect = coin_wood_img_surface.get_rect()
-    coin_wood_rect = (config.WIDTH - 110, 15)
+    coin_img_rect = coin_img_surface.get_rect()
+    coin_img_rect = (config.WIDTH - 110, 15)
 except FileNotFoundError as e:
-    coin_wood_img_loaded = False
-    coin_wood_rect = pygame.Rect(config.WIDTH - 110, 15, 100, 40)
+    coin_img_loaded = False
+    coin_img_rect = pygame.Rect(config.WIDTH - 110, 15, 100, 40)
     print(f"無法載入錢幣用木板圖片{e}")
 # 滑鼠
 try:

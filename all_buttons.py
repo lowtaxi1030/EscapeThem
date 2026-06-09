@@ -414,7 +414,7 @@ buttons = {
             font_size=28,
         ),
         TextButton(
-            name="leave",
+            name="quit",
             text="Quit",
             button_color=Colors.RED,
             text_color=Colors.WHITE,

@@ -48,6 +48,7 @@ elif all_saves:
 else:
     # 優先權 3：完全沒檔案，指向預設路徑
     active_save = config.BASE_DIR / "save_game.json"
+    data_handler.new_data(active_save)
 
 
 def check_data(path):
@@ -765,6 +766,7 @@ while config.running:
             config.now_treasure["rarity"] = template["rarity"]
             config.now_treasure["color"] = template["color"]
             config.now_treasure["add_points"] = template["add_points"]
+            config.now_treasure["scale"] = template.get("scale", 1.0)
 
             # [步驟 C] 定位並顯示
             config.now_treasure["x"] = random.randint(50, config.WIDTH - 50)
@@ -793,31 +795,35 @@ while config.running:
                     # 💡 提示：根據你畫面的 +15 偏移量，這裡大小給 (30, 30)，請根據你寶藏的實際寬高微調
                     coin_rect = pygame.Rect(config.now_treasure["x"], config.now_treasure["y"], 30, 30)
 
-                    # 🚧 攔截防線 A：嘗試在 X 軸前進
-                    coin_rect.x += dx
+                                        # 🚧 攔截防線 A：嘗試在 X 軸前進
                     x_collision = False
-                    for ob in config.current_setup.get("obstacles", []):
-                        # 💡 核心防線：如果這個障礙物要擋錢幣，且虛擬矩形撞到了它
-                        if "coin" in ob.can_block_thing and coin_rect.colliderect(ob.rect) and ob.mode == "attack":
-                            x_collision = True
+                    for _ in range(int(abs(dx))):
+                        coin_rect.x += 1 if dx > 0 else -1
+                        for ob in config.current_setup.get("obstacles", []):
+                            # 💡 核心防線：如果這個障礙物要擋錢幣，且虛擬矩形撞到了它
+                            if "coin" in ob.can_block_thing and coin_rect.colliderect(ob.rect) and ob.mode == "attack":
+                                x_collision = True
+                                if dx > 0:  # 本來正要往右衝
+                                    coin_rect.x = ob.rect.left - coin_rect.width
+                                elif dx < 0:  # 本來正要往左衝
+                                    coin_rect.x = ob.rect.right
+                        if x_collision:
                             break
-                    if not x_collision:
-                        # 如果 X 軸方向沒有被狗屎擋住，才真正允許 X 軸移動
-                        config.now_treasure["x"] += dx
-                    else:
-                        # 💡 提示：如果撞牆了，也可以在這裡把 coin_rect.x 退回原位
-                        coin_rect.x -= dx
-
-                    # 🚧 攔截防線 B：嘗試在 Y 軸前進
-                    coin_rect.y += dy
+                    config.now_treasure["x"] = coin_rect.x
                     y_collision = False
-                    for ob in config.current_setup.get("obstacles", []):
-                        if "coin" in ob.can_block_thing and coin_rect.colliderect(ob.rect) and ob.mode == "attack":
-                            y_collision = True
+                    for _ in range(int(abs(dy))):
+                        coin_rect.y += 1 if dy > 0 else -1
+                        for ob in config.current_setup.get("obstacles", []):
+                            # 💡 核心防線：如果這個障礙物要擋錢幣，且虛擬矩形撞到了它
+                            if "coin" in ob.can_block_thing and coin_rect.colliderect(ob.rect) and ob.mode == "attack":
+                                y_collision = True
+                                if dy > 0:  # 本來正要往下衝
+                                    coin_rect.y = ob.rect.top - coin_rect.height
+                                elif dy < 0:  # 本來正要往上衝
+                                    coin_rect.y = ob.rect.bottom
+                        if y_collision:
                             break
-                    if not y_collision:
-                        # 如果 Y 軸方向安全，才真正允許 Y 軸移動
-                        config.now_treasure["y"] += dy
+                    config.now_treasure["y"] = coin_rect.y
                 pygame.draw.line(
                     screen,
                     (*tool.Colors.GOLD, 150),  # 金色 (或是用 tool.Colors.GOLD)
@@ -828,8 +834,15 @@ while config.running:
 
             # 2. 繪製圖片 (使用更新後的 x, y)
             now_treasure_rarity = config.now_treasure["rarity"].lower()
+            current_coin_img = config.COIN_IMAGES[now_treasure_rarity]
+            # (2) 直接用 get_rect() 扒出這張圖片完美的寬和高，
+            #    並且把 x, y 設為寶箱此時的絕對世界座標！
+            t_rect = current_coin_img.get_rect()
+            t_rect.x = config.now_treasure["x"]
+            t_rect.y = config.now_treasure["y"]
+            config.now_treasure["rect"] = t_rect
             screen.blit(
-                config.COIN_IMAGES[now_treasure_rarity],
+                current_coin_img,
                 (config.now_treasure["x"] - config.offset_x, config.now_treasure["y"] - config.offset_y),
             )
 
@@ -1020,19 +1033,56 @@ while config.running:
         points_text = all_objs.show_text(screen, f"Coins: ${display_points}$", tool.Colors.WHITE, 10, 40, size=24, alpha=config.alphas[1])
 
         config.alphas[1] = 255
-        if player_rect.colliderect(time_text) or player_rect.colliderect(points_text):
-            config.alphas[1] = 100
+        # if player_rect.colliderect(time_text) or player_rect.colliderect(points_text):
+        #     config.alphas[1] = 100
 
+        # if config.alphas[1] == 255:
+        #     for enemy in config.current_setup.get("enemies", []):
+        #         if not getattr(enemy, "show", True):
+        #             continue  # 沒出現的不算
+        #         e_rect = pygame.Rect(enemy.x, enemy.y, enemy.width, enemy.height)
+
+        #         # 怪物碰到右上 OR 碰到左上，兩個一起變透明
+        #         if e_rect.colliderect(time_text) or e_rect.colliderect(points_text):
+        #             config.alphas[1] = 100
+        #             break
+        left_top_info = [time_text, points_text]
+        # 1️⃣ 怪物防線（記得套用你剛剛想起來的正牌名冊與螢幕座標轉換）
         if config.alphas[1] == 255:
             for enemy in config.current_setup.get("enemies", []):
                 if not getattr(enemy, "show", True):
-                    continue  # 沒出現的不算
-                e_rect = pygame.Rect(enemy.x, enemy.y, enemy.width, enemy.height)
+                    continue
 
-                # 怪物碰到右上 OR 碰到左上，兩個一起變透明
-                if e_rect.colliderect(time_text) or e_rect.colliderect(points_text):
+                # 建立怪物的螢幕視覺矩形
+                e_scr_rect = pygame.Rect(enemy.x - config.offset_x, enemy.y - config.offset_y, enemy.width, enemy.height)
+                if e_scr_rect.collidelist(left_top_info):
                     config.alphas[1] = 100
                     break
+
+        # 2️⃣ 子彈防線
+        if config.alphas[1] == 255:
+            for b in config.bullet_list:
+                # 🌟 提示：子彈的 b.rect 是絕對座標，也要轉成螢幕視覺座標！
+                b_scr_rect = pygame.Rect(b.rect.x - config.offset_x, b.rect.y - config.offset_y, b.rect.width, b.rect.height)
+                if b_scr_rect.collidelist(left_top_info) and b.show:
+                    config.alphas[1] = 100
+                    break
+
+        # 3️⃣ 障礙物防線
+        if config.alphas[1] == 255:
+            for ob in config.current_setup.get("obstacles", []):
+                if ob.mode == "attack" and ob.show:
+                    # 🌟 提示：ob.get_rect() 拿出來的也是絕對矩形，一樣要扣掉 offset 轉成螢幕視覺座標！
+                    ob_real = ob.get_rect()
+                    ob_scr_rect = pygame.Rect(ob_real.x - config.offset_x, ob_real.y - config.offset_y, ob_real.width, ob_real.height)
+
+                    if ob_scr_rect.collidelist(left_top_info):
+                        config.alphas[1] = 100
+                        break
+        if config.alphas[1] == 255:
+            if config.now_treasure["rect"].collidelist(left_top_info) and config.now_treasure["show"]:
+                config.alphas[1] = 100
+
         if config.player_hp <= 0:
             config.game_state = "game_over"
             last_color = tool.Colors.two_color_wave(

@@ -781,6 +781,7 @@ class UIManager:
                 if idx <= config.levels_unlocked:
                     config.selected_level = f"level{idx}"
                     config.lv_i = idx - 1
+                    config.reset_game()
                     data = all_objs.get_level_data(idx, config.select_world)
                     config.current_setup = {
                         "enemies": data[0],
@@ -790,7 +791,6 @@ class UIManager:
                         "name": data[4],
                     }
                     config.game_state = "countdown"
-                    config.reset_game()
                     config.print_coin_chance()
                     config.update_skill()
                 elif obj.is_next_level:
@@ -1249,26 +1249,62 @@ def coin_rect(player_rect=pygame.Rect(5000, 5000, 0, 0)):  # noqa: B008
     if player_rect.colliderect(config.coin_rect2):
         new_alpha = 100
 
+    # 1️⃣ 怪物防線（記得套用你剛剛想起來的正牌名冊與螢幕座標轉換）
     if new_alpha == 255:
-        for enemy in config.enemy_list:
+        for enemy in config.current_setup.get("enemies", []):
             if not getattr(enemy, "show", True):
-                continue  # 沒出現的不算
-            e_rect = pygame.Rect(enemy.x, enemy.y, enemy.width, enemy.height)
+                continue
 
-            # 怪物碰到右上 OR 碰到左上，兩個一起變透明
-            if e_rect.colliderect(config.coin_rect2):
+            # 建立怪物的螢幕視覺矩形
+            e_scr_rect = pygame.Rect(enemy.x - config.offset_x, enemy.y - config.offset_y, enemy.width, enemy.height)
+            if e_scr_rect.colliderect(config.coin_rect2):
                 new_alpha = 100
                 break
+    if new_alpha == 255:
+        for cannon in config.current_setup.get("cannons", []):
+            if not cannon.mode == "attack":
+                continue
+
+            # 建立怪物的螢幕視覺矩形
+            c_rect = cannon.rect
+            c_scr_rect = pygame.Rect(c_rect.x - config.offset_x, c_rect.y - config.offset_y, c_rect.width, c_rect.height)
+            if c_scr_rect.colliderect(config.coin_rect2):
+                new_alpha = 100
+                break
+
+    # 2️⃣ 子彈防線
+    if new_alpha == 255:
+        for b in config.bullet_list:
+            # 🌟 提示：子彈的 b.rect 是絕對座標，也要轉成螢幕視覺座標！
+            b_scr_rect = pygame.Rect(b.rect.x - config.offset_x, b.rect.y - config.offset_y, b.rect.width, b.rect.height)
+            if b_scr_rect.colliderect(config.coin_rect2):
+                new_alpha = 100
+                break
+
+    # 3️⃣ 障礙物防線
+    if new_alpha == 255:
+        for ob in config.current_setup.get("obstacles", []):
+            if ob.mode == "attack":
+                # 🌟 提示：ob.get_rect() 拿出來的也是絕對矩形，一樣要扣掉 offset 轉成螢幕視覺座標！
+                ob_real = ob.get_rect()
+                ob_scr_rect = pygame.Rect(ob_real.x - config.offset_x, ob_real.y - config.offset_y, ob_real.width, ob_real.height)
+
+                if ob_scr_rect.colliderect(config.coin_rect2):
+                    new_alpha = 100
+                    break
+    if new_alpha == 255:
+        if config.now_treasure["rect"].colliderect(config.coin_rect2) and config.now_treasure["show"]:
+            new_alpha = 100
 
     if config.game_state == "3!2!1!":
         new_alpha = 255
 
     # --- 4. 同步套用到所有相關圖片 ---
-    config.alphas[0] = new_alpha if config.game_state == "start_game" else 255
+    config.alphas[0] = new_alpha if config.game_state == "playing" else 255
 
     # 讓金幣框變透明
-    asset_manager.coin_wood_img_surface.set_alpha(config.alphas[0])
-    config.screen.blit(asset_manager.coin_wood_img_surface, asset_manager.coin_wood_rect)
+    asset_manager.coin_img_surface.set_alpha(config.alphas[0])
+    config.screen.blit(asset_manager.coin_img_surface, asset_manager.coin_img_rect)
 
     # 文字也要同步
     import all_objs

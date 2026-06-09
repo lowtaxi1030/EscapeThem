@@ -709,7 +709,6 @@ class Enemy:
                 self.x += self.current_dx * final_speed * self.x_dir
                 self.y += self.current_dy * final_speed * self.y_dir
                 is_moved = True
-
             else:
                 self.current_movement = "normal"
                 # 預設普通移動
@@ -745,8 +744,11 @@ class Enemy:
             if not (
                 (self.current_movement == "chaser" and "chaser" in self.types)
                 or (self.current_movement == "eat_coin" and "eat_coin" in self.types and now_treasure.get("show", False))
-            ):
+            ) and "random_angle" not in self.types:
                 self.x_dir *= -1
+            elif "random_angle" in self.types:
+                self.angle += 180
+                self.current_dx, self.current_dy = tool.get_direction(self.angle)
             self.x = tool.num_range(0, WIDTH - self.width, self.x)
             hit_anything = True
 
@@ -770,14 +772,22 @@ class Enemy:
                         ob_center_x = ob_rect.centerx
                         self_center_x = self.bound_rect.centerx
 
-                        if self_center_x < ob_center_x:  # 💡 怪物中心點偏左（人在方塊左邊）
-                            self.x = ob_rect.left - self.width  # 永遠只能被穩穩擋在左側表面
-                            if self.x_dir > 0:
-                                self.x_dir *= -1  # 只有當它還想往右衝時，才反轉方向
-                        else:  # 💡 怪物中心點偏右（人在方塊右邊）
-                            self.x = ob_rect.right  # 永遠只能被穩穩擋在右側表面
-                            if self.x_dir < 0:
-                                self.x_dir *= -1  # 只有當它還想往左衝時，才反轉方向
+                        if "random_angle" not in self.types:
+                            if self_center_x < ob_center_x:  # 💡 怪物中心點偏左（人在方塊左邊）
+                                self.x = ob_rect.left - self.width  # 永遠只能被穩穩擋在左側表面
+                                if self.x_dir > 0:
+                                    self.x_dir *= -1  # 只有當它還想往右衝時，才反轉方向
+                            else:  # 💡 怪物中心點偏右（人在方塊右邊）
+                                self.x = ob_rect.right  # 永遠只能被穩穩擋在右側表面
+                                if self.x_dir < 0:
+                                    self.x_dir *= -1  # 只有當它還想往左衝時，才反轉方向
+                        else:
+                            if self_center_x < ob_center_x:
+                                self.x = ob_rect.left - self.width
+                            else:
+                                self.x = ob_rect.right
+                            self.angle += 180
+                            self.current_dx, self.current_dy = tool.get_direction(self.angle)
 
                     self.bound_rect.x = self.x
                     break
@@ -789,7 +799,7 @@ class Enemy:
             if not (
                 (self.current_movement == "chaser" and "chaser" in self.types)
                 or (self.current_movement == "eat_coin" and "eat_coin" in self.types and now_treasure.get("show", False))
-            ):
+            ) and "random_angle" not in self.types:
                 self.y_dir *= -1
             self.y = tool.num_range(0, HEIGHT - self.height, self.y)
             hit_anything = True
@@ -815,14 +825,22 @@ class Enemy:
                         ob_center_y = ob_rect.centery
                         self_center_y = self.bound_rect.centery
 
-                        if self_center_y < ob_center_y:  # 💡 代表怪物人在方塊的「上半部/上方」
-                            self.y = ob_rect.top - self.height  # 永遠只能穩穩貼在頂部表面
-                            if self.y_dir > 0:
-                                self.y_dir *= -1  # 只有當它還想往下衝時，才反轉方向
-                        else:  # 💡 代表怪物人在方塊的「下半部/下方」
-                            self.y = ob_rect.bottom  # 永遠只能穩穩貼在底部表面
-                            if self.y_dir < 0:
-                                self.y_dir *= -1  # 只有當它還想往上衝時，才反轉方向
+                        if "random_angle" not in self.types:
+                            if self_center_y < ob_center_y:  # 💡 代表怪物人在方塊的「上半部/上方」
+                                self.y = ob_rect.top - self.height  # 永遠只能穩穩貼在頂部表面
+                                if self.y_dir > 0:
+                                    self.y_dir *= -1  # 只有當它還想往下衝時，才反轉方向
+                            else:  # 💡 代表怪物人在方塊的「下半部/下方」
+                                self.y = ob_rect.bottom  # 永遠只能穩穩貼在底部表面
+                                if self.y_dir < 0:
+                                    self.y_dir *= -1  # 只有當它還想往上衝時，才反轉方向
+                        else:
+                            if self_center_y < ob_center_y:
+                                self.y = ob_rect.top - self.height
+                            else:
+                                self.y = ob_rect.bottom
+                            self.angle += 180
+                            self.current_dx, self.current_dy = tool.get_direction(self.angle)
 
                     self.bound_rect.y = self.y
                     break
@@ -1044,7 +1062,7 @@ class Bullet:
         self.x += self.dx * self.speed * config.mode_speed_buff
         self.y += self.dy * self.speed * config.mode_speed_buff
         self.rect = pygame.Rect(self.x, self.y, 25, 25)  # 💡 提示：位移完同步更新 rect，讓外面畫的位置最精準
-
+        # print(f"🚀 子彈位置: ({self.x:.1f}, {self.y:.1f}) | 狀態: {self.is_exploding} | 半徑: {self.current_bom_radius}")
         return "FLYING", self.rect
 
     def draw(self, screen, offset_x, offset_y):

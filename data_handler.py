@@ -107,6 +107,12 @@ def save_data():
         print(f"❌ 存檔失敗: {e}")
 
 
+def new_data(path):
+    # 2. 寫入硬碟
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(initial_data, f, indent=4)
+    print(f"✨ 全新存檔已實體化成功！路徑：{path}")
+
 
 initial_data = {
     "balance": 0,

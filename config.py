@@ -790,13 +790,13 @@ game_mode = g_m[gm_i]
 # 解鎖關卡的價格，第一個是卡位用，第一關是０元
 level_costs = {
     "world1": [0, 0, 500, 1000, 5000, 15000, 35000, 50000, 75000, 100000, 130000],
-    "world2": [0, 0, 250000, 340000],  # , 400000, 500000, 650000, 700000, 840000, 950000, 1000000
+    "world2": [0, 0, 250000, 340000, 400000],  # , 500000, 650000, 700000, 840000, 950000, 1000000
 }  # 目前還沒有關卡
 
 # 下個關卡需要秒數，第一個卡位用
 level_need_record = {
     "world1": [0, 0, 50, 60, 60, 70, 80, 90, 90, 100, 100],
-    "world2": [0, 0, 110, 120],
+    "world2": [0, 0, 110, 120, 140],
 }
 
 MAX_WORLD = 2
@@ -1251,6 +1251,7 @@ def reset_game():
                 "can_spawn": True,
                 "next_spawn_at": random.randint(*next_spawn_range),  # type: ignore
                 "scale": 1.3 if name in ["Divine", "Exotic", "Mythic"] else 1.0,
+                "rect": pygame.Rect(0, 0, 0, 0),
             }
         )
 
