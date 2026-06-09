@@ -773,7 +773,7 @@ skin_text_color = {
 }
 
 
-current_levels = {f"upgrade_p{i}": 0 for i in range(1, len(UPGRADE_SURVIVAL) + len(UPGRADE_COMBAT) + 1)}
+current_levels = {f"upgrade_p{i}": {"current_lv": 0, "max_lv": 0} for i in range(1, len(UPGRADE_SURVIVAL) + len(UPGRADE_COMBAT) + 1)}
 
 now_player_skin = tool.Colors.RED
 current_player_color_name = "red"
@@ -854,7 +854,8 @@ def get_skill_val(p_key):
         print(f"Error: {p_key} 不存在於任何設定檔中")
         return 0
 
-    lvl = current_levels.get(p_key, 0)
+    skill_data = current_levels.get(p_key, {"current_lv": 0, "max_lv": 0})
+    player_current_lvl = skill_data.get("current_lv", 0)
 
     # 🌟 核心防禦：從 limits 字典裡，安全抓出玩家「當前正在遊玩的世界」的等級天花板
     # 提示：select_world 代表目前選單選中的世界（或者是你遊戲關卡內用的 current_playing_world）
@@ -863,7 +864,7 @@ def get_skill_val(p_key):
 
     # 🌟 一擊必殺的 Level Sync：取兩者之間較小的那一個！
     # 如果買到 21 等，但世界 1 上限是 12 等 -> min(21, 12) 就會強制壓回 12！
-    effective_level = min(lvl, world_max)
+    effective_level = min(player_current_lvl, world_max)
 
     # 🌟 最後，用這個被安全修正後的「有效等級」去查數值表！
     return cfg["skills"][effective_level]
@@ -1064,7 +1065,10 @@ def update_upgrade_hub_layout():
 
     # 2. 直接迭代字典，不用管數字編號了
     for i, (key, cfg) in enumerate(current_cfg.items()):
-        lvl = current_levels.get(key, 0)
+
+        skill_data = current_levels.get(key, {"current_lv": 0, "max_lv": 0})
+        lvl = skill_data.get("max_lv", 0)
+
         costs = cfg["costs"]
         is_world_max = lvl >= cfg["limits"][select_world]
         is_absolute_max = lvl >= len(costs)

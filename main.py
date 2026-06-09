@@ -306,7 +306,8 @@ while config.running:
             current_data_source = config.UPGRADE_SURVIVAL
         # 1. 抓取當前頁面的數據
         cfg = current_data_source[config.game_state]
-        lvl = config.current_levels[config.game_state]
+        skill_data = config.current_levels[config.game_state]
+        lvl = skill_data["max_lv"]
         costs = cfg["costs"]
 
         all_configs = {**config.UPGRADE_SURVIVAL, **config.UPGRADE_COMBAT}

@@ -1,6 +1,7 @@
 import json
 import math
 import random
+import traceback
 
 import pygame
 
@@ -266,7 +267,8 @@ class UIManager:
                 else:
                     cfg = config.UPGRADE_SURVIVAL[config.game_state]
 
-                lvl = config.current_levels[config.game_state]
+                skill_data = config.current_levels[config.game_state]
+                lvl = skill_data["max_lv"]
                 costs = cfg["costs"]
 
                 # 2. 💡 狀態動態判定：分成「未滿等」與「滿等」兩大路線
@@ -669,8 +671,9 @@ class UIManager:
                     config.load_resets()
                     print(f"✔️ Loaded save from {obj.save_path}!")
                     config.game_state = "menu"
-                except Exception as e:
-                    print(f"Error loading save: {e}")
+                except Exception:
+                    print("Error loading save:")
+                    traceback.print_exc()
                     config.floating_texts.append(
                         tool.FloatingText("Failed to load save!", 0, config.HEIGHT - 50, tool.Colors.RED, center=True, time=300, size=50)
                     )

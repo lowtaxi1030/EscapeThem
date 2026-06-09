@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import config
+import old_to_new
 import tool
 
 BASE_DIR = Path(__file__).parent
@@ -30,6 +31,10 @@ def load_data(file_path=None):
 
         with target_path.open("r", encoding="utf-8") as f:
             data = json.load(f)
+
+        if old_to_new.cheak_version(target_path):
+            print("⚠️ 發現舊版本存檔，正在嘗試遷移格式...")
+            old_to_new.migrate_save_format(target_path)
 
         # 1. 讀取金錢與基本數值
         config.total_points = data.get("balance", 0)
@@ -93,7 +98,7 @@ def save_data():
             "gm_i": config.gm_i,
             "has_buy_crazy": config.has_buy_crazy,
             "levels_unlocked": config.all_worlds_unlocked,  # 存入完整的字典
-            "save_game_version": 3,  # 標記存檔版本，方便未來升級
+            "save_game_version": 4,  # 標記存檔版本，方便未來升級
             "select_world": config.select_world,
             "worlds_unlocked": config.worlds_unlocked,
         }
@@ -112,6 +117,40 @@ def new_data(path):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(initial_data, f, indent=4)
     print(f"✨ 全新存檔已實體化成功！路徑：{path}")
+
+
+# def data_init():
+#     # 1. 先找出所有符合格式的存檔
+#     all_saves = sorted(config.BASE_DIR.glob("save_game*.json"))
+
+#     # 2. 判定優先順序
+#     if (config.BASE_DIR / "save_game.json").exists():
+#         # 優先權 1：標準存檔
+#         active_save = config.BASE_DIR / "save_game.json"
+#     elif all_saves:
+#         # 優先權 2：其他編號存檔 (例如 save_game_1.json)
+#         active_save = all_saves[0]
+#     else:
+#         # 優先權 3：完全沒檔案，指向預設路徑
+#         active_save = config.BASE_DIR / "save_game.json"
+#         new_data(active_save)
+
+
+#     def check_data(path):
+#         """檢查存檔版本，並在需要時進行遷移"""
+#         if old_to_new.cheak_version(path):
+#             print("⚠️ 發現舊版本存檔，正在嘗試遷移格式...")
+#             old_to_new.migrate_save_format(path)
+
+
+#     check_data(active_save)
+
+#     # --- 關鍵修正：同步給 config ---
+#     config.current_active_path = active_save
+
+#     # 執行讀取
+#     load_data(config.current_active_path)
+#     config.load_resets()
 
 
 initial_data = {

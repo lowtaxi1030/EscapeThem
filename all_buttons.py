@@ -284,7 +284,7 @@ buttons = {
         TextButton(
             name="upgrade",
             text="",  # 因應不同升級項目，文字會由 sync 更新
-            rect=pygame.Rect(0, 300, 350, 60),
+            rect=pygame.Rect(0, 280, 350, 60),
             button_color=Colors.YELLOW,
             text_color=Colors.BLACK,
             font_size=24,
@@ -293,6 +293,17 @@ buttons = {
             normal_border_color=Colors.BLACK,
             hover_color=Colors.GREEN,  # 由錢判斷顏色(在ui_handler裡)，所以 hover_color 就先給一個預設值，反正會被覆蓋掉
             pressing_color=Colors.PARIS_GREEN,  # 同上，先給預設值
+        ),
+        Button(
+            name="slider_base",
+            rect=pygame.Rect(100, 450, 500, 15),
+            normal_color=Colors.WHITE
+        ),
+        Button(
+            name="slider",
+            rect=pygame.Rect(500, 437, 20, 40),
+            normal_color=Colors.RED,
+            border_radius=10
         ),
         TextButton(
             name="back_upg",
