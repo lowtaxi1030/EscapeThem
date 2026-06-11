@@ -101,7 +101,7 @@ def migrate_save_format(file_name):
             "save_game_version": 4,
             "gm_i": 1,
             "has_buy_crazy": old_data.get("has_buy_crazy", False),
-            "worlds_unlocked": 1,
+            "worlds_unlocked": old_data.get("worlds_unlocked", 1),
         }
         with (BASE_DIR / file_name).open("w", encoding="utf-8") as f:
             json.dump(new_data, f, indent=4, ensure_ascii=False)

@@ -70,6 +70,7 @@ config.load_resets()
 # 補空位專區
 leave_button = menu_button = restart_button = resume_button = lv_button = draw_button = levels_button = pygame.Rect(0, 0, 0, 0)
 settings_button = upgrade_button = help_button = exit_button = player_rect = back_button = enemy_rect = pygame.Rect(0, 0, 0, 0)
+time_text = points_text = pygame.Rect(0, 0, 0, 0)
 next_world_button = pygame.Rect(0, 0, 0, 0)
 level_button_color = tool.Colors.WHITE
 config.target_y = 0
@@ -1027,36 +1028,15 @@ while config.running:
         ) * config.gm_points_buff * config.now_skills["p3"] * config.current_setup.get("multiplier", 1) + config.shoot_point
         if config.selected_level == "level 3" and config.game_mode == "crazy":
             config.points *= 0.5
-        time_text = all_objs.show_text(
-            screen, f"Time: {tool.show_time_min(config.current_time_sec)}", tool.Colors.WHITE, 10, 10, size=24, alpha=config.alphas[1]
-        )
-        display_points = tool.num_to_KMBT(round(config.points, 1))
-        points_text = all_objs.show_text(screen, f"Coins: ${display_points}$", tool.Colors.WHITE, 10, 40, size=24, alpha=config.alphas[1])
 
-        config.alphas[1] = 255
-        # if player_rect.colliderect(time_text) or player_rect.colliderect(points_text):
-        #     config.alphas[1] = 100
-
-        # if config.alphas[1] == 255:
-        #     for enemy in config.current_setup.get("enemies", []):
-        #         if not getattr(enemy, "show", True):
-        #             continue  # 沒出現的不算
-        #         e_rect = pygame.Rect(enemy.x, enemy.y, enemy.width, enemy.height)
-
-        #         # 怪物碰到右上 OR 碰到左上，兩個一起變透明
-        #         if e_rect.colliderect(time_text) or e_rect.colliderect(points_text):
-        #             config.alphas[1] = 100
-        #             break
         left_top_info = [time_text, points_text]
+        config.alphas[1] = 255
         # 1️⃣ 怪物防線（記得套用你剛剛想起來的正牌名冊與螢幕座標轉換）
         if config.alphas[1] == 255:
             for enemy in config.current_setup.get("enemies", []):
-                if not getattr(enemy, "show", True):
-                    continue
-
                 # 建立怪物的螢幕視覺矩形
                 e_scr_rect = pygame.Rect(enemy.x - config.offset_x, enemy.y - config.offset_y, enemy.width, enemy.height)
-                if e_scr_rect.collidelist(left_top_info):
+                if enemy.mode == "attack" and e_scr_rect.collidelist(left_top_info) != -1:
                     config.alphas[1] = 100
                     break
 
@@ -1065,7 +1045,7 @@ while config.running:
             for b in config.bullet_list:
                 # 🌟 提示：子彈的 b.rect 是絕對座標，也要轉成螢幕視覺座標！
                 b_scr_rect = pygame.Rect(b.rect.x - config.offset_x, b.rect.y - config.offset_y, b.rect.width, b.rect.height)
-                if b_scr_rect.collidelist(left_top_info) and b.show:
+                if b_scr_rect.collidelist(left_top_info) != -1 and b.mode == "attack":
                     config.alphas[1] = 100
                     break
 
@@ -1077,12 +1057,21 @@ while config.running:
                     ob_real = ob.get_rect()
                     ob_scr_rect = pygame.Rect(ob_real.x - config.offset_x, ob_real.y - config.offset_y, ob_real.width, ob_real.height)
 
-                    if ob_scr_rect.collidelist(left_top_info):
+                    if ob_scr_rect.collidelist(left_top_info) != -1:
                         config.alphas[1] = 100
                         break
         if config.alphas[1] == 255:
-            if config.now_treasure["rect"].collidelist(left_top_info) and config.now_treasure["show"]:
+            if config.now_treasure["rect"].collidelist(left_top_info) != -1 and config.now_treasure["show"]:
                 config.alphas[1] = 100
+        if config.alphas[1] == 255:
+            if config.player_rect.collidelist(left_top_info) != -1:
+                config.alphas[1] = 100
+
+        time_text = all_objs.show_text(
+            screen, f"Time: {tool.show_time_min(config.current_time_sec)}", tool.Colors.WHITE, 10, 10, size=24, alpha=config.alphas[1]
+        )
+        display_points = tool.num_to_KMBT(round(config.points, 1))
+        points_text = all_objs.show_text(screen, f"Coins: ${display_points}$", tool.Colors.WHITE, 10, 40, size=24, alpha=config.alphas[1])
 
         if config.player_hp <= 0:
             config.game_state = "game_over"
@@ -1147,7 +1136,6 @@ while config.running:
         display_points = tool.num_to_KMBT(round(config.points, 1))
         all_objs.show_text(screen, f"Coins: {display_points}$", tool.Colors.WHITE, 0, 140, screen_center=True)
         ui_manager.handle_current_state(events, mouse_pos)
-    #  -------------------------------------↑已更新成ui_manager版↑--------------------------------------
     # 死亡
     elif config.game_state == "game_over":
         screen.fill(last_color)

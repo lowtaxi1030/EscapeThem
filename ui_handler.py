@@ -149,10 +149,10 @@ class UIManager:
 
         if config.game_state == "more_survived_time":
             if obj.name.startswith("info_"):
-                obj.rect.y = obj.base_y - config.scroll_ys[0]
+                obj.org_rect.y = obj.base_y - config.scroll_ys[0]
 
                 # 檢查是否超出螢幕，超出則隱藏
-                obj.is_visible = -50 < obj.rect.y < config.HEIGHT - 80
+                obj.is_visible = -50 < obj.org_rect.y < config.HEIGHT - 80
 
         if config.game_state == "setting_p2":
             if obj.name == "draw_skin":
@@ -198,11 +198,11 @@ class UIManager:
 
                 # 4. 重新計算座標 (使用手動累加的 self.skin_display_idx)
                 # 這樣即便中間有皮膚被隱藏，後面的皮膚也會自動遞補上來排好
-                obj.rect.x = start_x + (self.skin_display_idx % 2) * col_gap
-                obj.rect.y = start_y + (self.skin_display_idx // 2) * row_gap - config.scroll_ys[4]
+                obj.org_rect.x = start_x + (self.skin_display_idx % 2) * col_gap
+                obj.org_rect.y = start_y + (self.skin_display_idx // 2) * row_gap - config.scroll_ys[4]
 
                 # 5. 設定顯示區域判定 (捲動裁切)
-                obj.is_visible = 150 < obj.rect.y < 450
+                obj.is_visible = 150 < obj.org_rect.y < 450
 
                 # 6. 確定要顯示，計數器才 +1
                 self.skin_display_idx += 1
@@ -230,24 +230,24 @@ class UIManager:
 
                 # 新增：繪製經驗條
                 if is_owned:  # 利用你剛才定義好的狀態變數
-                    bar_y = obj.rect.y + 55  # 直接用 obj.rect.y，舒舒服服
+                    bar_y = obj.org_rect.y + 55  # 直接用 obj.rect.y，舒舒服服
                     max_needed = config.get_upgrade_threshold(skin_data["level"])
                     ratio = min(1.0, skin_data["exp"] / max_needed)
 
                     # 只有按鈕可見時才畫條
                     if obj.is_visible:
-                        pygame.draw.rect(self.screen, tool.Colors.BLACK, (obj.rect.x, bar_y, 150, 5))
-                        pygame.draw.rect(self.screen, tool.Colors.GREEN, (obj.rect.x, bar_y, 150 * ratio, 5))
+                        pygame.draw.rect(self.screen, tool.Colors.BLACK, (obj.org_rect.x, bar_y, 150, 5))
+                        pygame.draw.rect(self.screen, tool.Colors.GREEN, (obj.org_rect.x, bar_y, 150 * ratio, 5))
             # print(all_buttons.buttons["setting_p2"][1].rect.x, all_buttons.buttons["setting_p2"][1].rect.y)
 
         if config.game_state == "choose_file":
             if obj.name.startswith("save_"):
-                obj.rect.y = obj.base_y - config.scroll_ys[1]
+                obj.org_rect.y = obj.base_y - config.scroll_ys[1]
 
         if config.game_state == "upgrade_hub":
             if obj.name.startswith("upgrade_p"):
-                obj.rect.y = obj.base_y - config.scroll_ys[2]
-                obj.is_visible = 0 < obj.rect.y < config.HEIGHT
+                obj.org_rect.y = obj.base_y - config.scroll_ys[2]
+                obj.is_visible = 0 < obj.org_rect.y < config.HEIGHT
             if obj.name == "left":
                 l_show = config.shop_page == "combat"
                 obj.is_visible = l_show
@@ -316,7 +316,7 @@ class UIManager:
 
                 # 1. 基礎功能放行
                 obj.active = not is_locked or obj.is_next_level
-                obj.rect.y = obj.base_y - config.scroll_ys[3]
+                obj.org_rect.y = obj.base_y - config.scroll_ys[3]
 
                 # 2. 🌟 實作你的懸停設計！
                 if obj.is_next_level and obj.is_hover:
@@ -377,7 +377,7 @@ class UIManager:
 
                 # 1. 基礎功能防行與捲軸位置同步
                 obj.base_y = 60 + len(config.current_world_costs) * 80
-                obj.rect.y = obj.base_y - config.scroll_ys[3]
+                obj.org_rect.y = obj.base_y - config.scroll_ys[3]
 
                 # 狀態 A：如果根本沒有下一個世界（全破了）
                 if not has_next_world:
@@ -423,7 +423,7 @@ class UIManager:
             if obj.name == "hp_bar":
                 display_hp = max(math.ceil(config.player_hp), 0)
                 hp_ratio = display_hp / config.player_max_hp
-                obj.rect.width = 100 * hp_ratio
+                obj.draw_rect.width = 100 * hp_ratio
                 obj.change_base_color((*tool.Colors.RED, config.alphas[0]))
             if obj.name == "hp_bar_bg":
                 obj.change_base_color((*tool.Colors.DARK_RED, config.alphas[0]))

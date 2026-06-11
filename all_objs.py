@@ -69,17 +69,19 @@ class Button:
         disabled_border_color: Color | AlphaColor | None = None,
         show=True,
         color_wave: None | list[Color] = None,
+        screen_center=False,
     ):
         self.name = name
-        self.rect = rect
+        self.org_rect = rect
+        self.draw_rect = self.org_rect.copy()
         self.base_y = rect.y
         self.border_radius = border_radius
         self.border_width = border_width
         self.active = True
-        self.is_toggle = False
+        self.toggle = False
         self.is_hover = False
-        self.is_pressed = False
-        self.is_pressing = False
+        self.is_down = False
+        self.is_hoding = False
         self.is_clicked = False
         self.type = "normal"
 
@@ -97,6 +99,8 @@ class Button:
 
         self.is_visible = show
         self.color_wave = color_wave
+
+        self.screen_center = screen_center
 
     def change_base_color(self, new_color, force=False):
         self.normal_color = new_color
@@ -124,7 +128,7 @@ class Button:
         if not self.active:
             return self.disabled_color
 
-        if self.is_pressing:
+        if self.is_hoding:
             return self.pressing_color
 
         if self.is_hover:
@@ -136,7 +140,7 @@ class Button:
         if not self.active:
             return self.disabled_border_color
 
-        if self.is_pressing:
+        if self.is_hoding:
             return self.pressing_border_color
 
         if self.is_hover:
@@ -149,7 +153,7 @@ class Button:
 
     def update(self, events, mouse_pos):
         if not self.is_visible or not self.active:
-            self.is_pressed = False
+            self.is_down = False
             self.is_clicked = False
             return
 
@@ -157,34 +161,40 @@ class Button:
         self.is_clicked = False
 
         # hover
-        self.is_hover = self.rect.collidepoint(mouse_pos)
+        self.is_hover = self.draw_rect.collidepoint(mouse_pos)
 
         for event in events:
             # 按下
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if self.is_hover:
-                    self.is_pressed = True
-                    self.is_pressing = True
+                    self.is_down = True
+                    self.is_hoding = True
             # 放開
             if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-                self.is_pressing = False
-                if self.is_pressed and self.is_hover:
+                self.is_hoding = False
+                if self.is_down and self.is_hover:
                     self.is_clicked = True
 
-                self.is_pressed = False
+                self.is_down = False
         if self.type == "hold":
-            if self.is_pressed and self.is_hover:
+            if self.is_down and self.is_hover:
                 self.is_clicked = True
         elif self.type == "toggle":
             if self.is_clicked:
-                self.is_toggle = not self.is_toggle
+                self.toggle = not self.toggle
 
     def draw(self, screen: pygame.Surface, alpha=255):
         if not self.is_visible:
             return
 
+        # 計算繪製位置
+        self.draw_rect = self.org_rect.copy()
+
+        if self.screen_center:
+            self.draw_rect.centerx = screen.get_rect().centerx
+
         # 建立支援透明度的臨時畫布
-        surface = pygame.Surface(self.rect.size, pygame.SRCALPHA)
+        surface = pygame.Surface(self.draw_rect.size, pygame.SRCALPHA)
         color = self.get_color()
         border_color = self.get_border_color()
 
@@ -215,7 +225,7 @@ class Button:
                 width=self.border_width,  # 💡 傳入寬度使其變成「空心外框」
             )
 
-        screen.blit(surface, self.rect.topleft)
+        screen.blit(surface, self.draw_rect.topleft)
 
 
 class TextButton(Button):
@@ -300,7 +310,7 @@ class TextButton(Button):
     def get_text_color(self):
         if not self.active:
             return self.disable_text_color
-        if self.is_pressing:
+        if self.is_hoding:
             return self.pressing_text_color
         if self.is_hover:
             return self.hover_text_color
@@ -338,7 +348,7 @@ class TextButton(Button):
         # 狀態優先級：Disabled > Pressed > Hover > Normal
         if not self.active:
             self.current_text = self.disable_text or self.org_text
-        elif self.is_pressing:
+        elif self.is_hoding:
             self.current_text = self.pressing_text or self.org_text
         elif self.is_hover:
             self.current_text = self.hover_text or self.org_text
@@ -347,16 +357,16 @@ class TextButton(Button):
 
     # 💡 提示：讓 TextButton.draw 也能接收外部傳入的動態 alpha 特效參數
     def draw(self, screen: pygame.Surface, alpha=255):
-        if self.rect.width <= 0 or self.rect.height <= 0:
-            print(f"💥 抓到你了！出事的按鈕名字叫: {self.name}, 它的 rect 是: {self.rect}")
         if not self.is_visible:
             return
 
-        if self.screen_center:
-            self.rect.centerx = screen.get_rect().w // 2
+        self.draw_rect = self.org_rect.copy()
 
-        t_x = self.rect.centerx if self.text_center else self.rect.x + 10
-        t_y = self.rect.centery if self.text_center else self.rect.y + 10
+        if self.screen_center:
+            self.draw_rect.centerx = screen.get_rect().w // 2
+
+        t_x = self.draw_rect.centerx if self.text_center else self.draw_rect.x + 10
+        t_y = self.draw_rect.centery if self.text_center else self.draw_rect.y + 10
 
         # 1. 💡 呼叫父類別繪製背景 (底色與邊框)：把動態 alpha 傳進去
         super().draw(screen, alpha)
@@ -378,7 +388,7 @@ class TextButton(Button):
             center=True,
         )
         if self.draw_lock:
-            asset_manager.lock_rect.center = self.rect.center
+            asset_manager.lock_rect.center = self.draw_rect.center
             # 直接在按鈕的座標附近 blit 鎖頭圖案，它就會完美跟著按鈕一起移動、滾動！
             screen.blit(asset_manager.lock_img_surface, asset_manager.lock_rect)
 
