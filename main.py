@@ -309,6 +309,7 @@ while config.running:
         cfg = current_data_source[config.game_state]
         skill_data = config.current_levels[config.game_state]
         lvl = skill_data["max_lv"]
+        current_lvl = skill_data["current_lv"]
         costs = cfg["costs"]
 
         all_configs = {**config.UPGRADE_SURVIVAL, **config.UPGRADE_COMBAT}
@@ -336,71 +337,19 @@ while config.running:
             current_lv_color,
             0,
             120,
-            size=40,
-            screen_center=True,
-        )
-        all_objs.show_text(
-            screen,
-            f"Balance: {tool.num_to_KMBT(round(config.total_points, 1))}$",
-            tool.Colors.WHITE,
-            0,
-            180,
             size=35,
             screen_center=True,
         )
 
         # --- 技能數值說明 ---
-        # --- 🔥 萬能數值顯示邏輯 (開始) ---
-        now_val = cfg["skills"][lvl]  # 取得當前等級數值
-
-        # 準備顯示的字串變數
-        display_text = ""
-
-        # 1. 判斷是否為特殊格式 (字典 dict) -> 針對 Regen
-        if isinstance(now_val, dict):
-            hp = now_val.get("hp", 0)
-            time = now_val.get("time", 10)
-
-            if hp == 0:
-                # Level 0 的顯示方式
-                display_text = "No Regen"
-            else:
-                # Level 1+ 的顯示方式 (例如: +1 HP / 10s)
-                display_text = f"+{hp} HP / {time}s"
-        # 2. 判斷是否為定格式
-        elif config.get_key("upgrade_p15", cfg):
-            display_text = f"Can Shoot: {bool(now_val)}"
-
-        elif config.get_key("upgrade_p16", cfg):
-            display_text = f"CD: {now_val / 1000}s"
-
-        # 3. 判斷是否為普通數字 (int/float) -> 針對 Speed, Size...
-        else:
-            if (
-                any([config.get_key("upgrade_p16", cfg), config.get_key("upgrade_p17", cfg), config.get_key("upgrade_p18", cfg)])
-                and not config.can_shoot
-            ):
-                display_text = "You Had Not Buy 'Can Shoot'"
-            # 這裡我們配合設定檔裡的 skill_desc
-            # 例如 Speed 的 skill_desc 是 "Speed +{}"，這裡只要給數字就好
-            else:
-                display_text = cfg["skill_desc"].format(now_val)
-
-        # 3. 針對 Regen 的特殊補強
-        # 因為 Regen 的 skill_desc 我們設成了 "{}"，所以上面的 else 跑不到格式化
-        # 我們手動加上前綴，讓它跟其他屬性看起來比較像
-        if "upgrade_p7" in config.UPGRADE_SURVIVAL and cfg == config.UPGRADE_SURVIVAL["upgrade_p7"]:
-            display_text = f"Regen: {display_text}"
-
-        # 4. 最後畫在螢幕上
-        # 注意：這裡直接顯示 display_text，不要再 format 一次了
-        all_objs.show_text(screen, f"Effect: {display_text}", tool.Colors.WHITE, 0, 230, size=25, screen_center=True)
-        # --- 萬能數值顯示邏輯 (結束) ---
+        all_objs.show_text(screen, f"Effect: {config.get_effect_text(cfg, lvl)}", tool.Colors.WHITE, 0, 190, size=25, screen_center=True)
 
         if config.game_state == "upgrade_p20":
             all_objs.show_text(
-                screen, "While you're playing, press 'T' to alto shoot!", tool.Colors.YELLOW, 0, 215, size=20, screen_center=True
+                screen, "While you're playing, press 'T' to alto shoot!", tool.Colors.YELLOW, 0, 170, size=20, screen_center=True
             )
+        if config.game_state != "upgrade_hub":
+            all_objs.show_text(screen, [f"Current Level: {config.current_levels[config.game_state]["current_lv"]}", f"Effect: {config.get_effect_text(cfg, current_lvl)}"], tool.Colors.WHITE, 0, 350, screen_center=True)
 
         # --- 保留你的圖片繪製邏輯 ---
         ui_handler.coin_rect()  # 繪製金幣圖示
@@ -797,7 +746,7 @@ while config.running:
                     # 💡 提示：根據你畫面的 +15 偏移量，這裡大小給 (30, 30)，請根據你寶藏的實際寬高微調
                     coin_rect = pygame.Rect(config.now_treasure["x"], config.now_treasure["y"], 30, 30)
 
-                                        # 🚧 攔截防線 A：嘗試在 X 軸前進
+                    # 🚧 攔截防線 A：嘗試在 X 軸前進
                     x_collision = False
                     for _ in range(int(abs(dx))):
                         coin_rect.x += 1 if dx > 0 else -1
@@ -876,7 +825,7 @@ while config.running:
                     f"{round(base_val * config.gm_points_buff * config.now_skills['p3'] * config.current_setup['multiplier'], 1):g}"
                 )
 
-                coin_text = tool.FloatingText(f"+${display_val}", player_rect.x, player_rect.y, tool.Colors.GOLD)
+                coin_text = tool.FloatingText(f"+${tool.num_to_KMBT(float(display_val))}", player_rect.x, player_rect.y, tool.Colors.GOLD)
                 config.floating_texts.append(coin_text)
 
                 # 3. 消失並設定「下一次」出現的時間
@@ -1045,14 +994,19 @@ while config.running:
             for b in config.bullet_list:
                 # 🌟 提示：子彈的 b.rect 是絕對座標，也要轉成螢幕視覺座標！
                 b_scr_rect = pygame.Rect(b.rect.x - config.offset_x, b.rect.y - config.offset_y, b.rect.width, b.rect.height)
-                if b_scr_rect.collidelist(left_top_info) != -1 and b.mode == "attack":
+                if b_scr_rect.collidelist(left_top_info) != -1:
                     config.alphas[1] = 100
                     break
+        # 3️⃣ 砲台防線
+        if config.alphas[1] == 255:
+            for c in config.current_setup.get("cannons", []):
+                if c.mode == "attack":
+                    c_scr_rect = pygame.Rect(c.rect.x - config.offset_x, c.rect.y - config.offset_y, c.rect.width, c.rect.height)
 
-        # 3️⃣ 障礙物防線
+        #  障礙物防線
         if config.alphas[1] == 255:
             for ob in config.current_setup.get("obstacles", []):
-                if ob.mode == "attack" and ob.show:
+                if ob.mode == "attack":
                     # 🌟 提示：ob.get_rect() 拿出來的也是絕對矩形，一樣要扣掉 offset 轉成螢幕視覺座標！
                     ob_real = ob.get_rect()
                     ob_scr_rect = pygame.Rect(ob_real.x - config.offset_x, ob_real.y - config.offset_y, ob_real.width, ob_real.height)

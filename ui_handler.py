@@ -78,7 +78,7 @@ class UIManager:
         config.reset_game()
         config.player_bullets.clear()
 
-    def _sync_ui_state(self, obj: all_buttons.Button | all_buttons.TextButton | all_buttons.ImageButton | all_buttons.Line):
+    def _sync_ui_state(self, obj: all_buttons.Button | all_buttons.TextButton | all_buttons.ImageButton | all_buttons.Line, mouse_pos):
         if hasattr(obj, "color_wave") and obj.color_wave is not None:
             self._handle_color_wave(obj)
 
@@ -293,11 +293,46 @@ class UIManager:
                         obj.change_base_text(f"Cost: ${tool.num_to_KMBT(cost)}")
                 else:
                     # 3. 💡 滿等特殊處理
-                    if lvl >= cfg["limits"][config.select_world] and config.select_world < len(config.all_worlds_unlocked):
+                    current_limit = cfg["limits"][config.select_world]
+                    has_next_world = config.select_world < len(config.all_worlds_unlocked)
+                    next_world_limit = cfg["limits"].get(config.select_world + 1, 0)
+                    limit_is_same = next_world_limit == current_limit
+                    is_max_level = lvl >= cfg["limits"][config.select_world]
+                    if is_max_level and has_next_world and not limit_is_same:
                         obj.change_base_text(f"Locked: Reach World {config.select_world + 1}")
                     else:
                         obj.change_base_text("MAX LEVEL")
                     obj.change_base_color(tool.Colors.GRAY, force=True)
+
+            if obj.name == "slider":
+                if config.game_state in config.UPGRADE_COMBAT:
+                    cfg = config.UPGRADE_COMBAT[config.game_state]
+                else:
+                    cfg = config.UPGRADE_SURVIVAL[config.game_state]
+                current_limit = cfg["limits"][config.select_world]  # 當前限制 (例如 21)
+                skill_data = config.current_levels[config.game_state]
+                lvl = skill_data["max_lv"]
+                current_lvl = skill_data["current_lv"]
+                track_width = 580 - 120
+                if obj.is_hoding:
+                    obj.org_rect.centerx = tool.num_range(120, 580, mouse_pos[0])
+                    offset = obj.org_rect.centerx - 120
+                    percentage = offset / track_width
+                    calculated_lv = round(percentage * current_limit)
+                    config.current_levels[config.game_state]["current_lv"] = calculated_lv
+                else:
+                    # 玩家沒有按住滑桿時
+                    current_game_lvl = current_lvl
+
+                    # 🛡️ 安全鎖：防止存檔等級超過上限導致球球飛出去
+                    current_game_lvl = min(current_game_lvl, current_limit)
+
+                    # 反推它天經地義應該要停靠的 X 座標
+                    lvl_percentage = current_game_lvl / current_limit
+                    ideal_x = 120 + (lvl_percentage * track_width)
+
+                    # 讓球球直接校準過去！
+                    obj.org_rect.centerx = ideal_x
 
             if obj.name == "left":
                 obj.is_visible = config.current_p_num > 1
@@ -423,13 +458,13 @@ class UIManager:
             if obj.name == "hp_bar":
                 display_hp = max(math.ceil(config.player_hp), 0)
                 hp_ratio = display_hp / config.player_max_hp
-                obj.draw_rect.width = 100 * hp_ratio
+                obj.org_rect.width = 100 * hp_ratio
                 obj.change_base_color((*tool.Colors.RED, config.alphas[0]))
             if obj.name == "hp_bar_bg":
                 obj.change_base_color((*tool.Colors.DARK_RED, config.alphas[0]))
 
     def handle_current_state(self, events, mouse_pos):
-        self._handle_other_events(events)
+        self._handle_other_events(events, mouse_pos)
         self._handle_scroll_ys()
 
         # 先用一個變數把要搜尋的 key 存起來
@@ -450,9 +485,9 @@ class UIManager:
                 obj.update(events, mouse_pos)
 
             if obj.name.startswith("skin_"):
-                self._sync_ui_state(obj)  # 傳入目前的顯示索引，讓它知道自己是第幾個要顯示的皮膚按鈕
+                self._sync_ui_state(obj, mouse_pos)  # 傳入目前的顯示索引，讓它知道自己是第幾個要顯示的皮膚按鈕
             else:
-                self._sync_ui_state(obj)  # 一般按鈕不需要 idx
+                self._sync_ui_state(obj, mouse_pos)  # 一般按鈕不需要 idx
 
             if obj.is_clicked:
                 self.clicked_btns.append(obj.name)
@@ -460,7 +495,7 @@ class UIManager:
             # 4. 處理點擊
             if getattr(obj, 'is_clicked', False):
                 self.any_clicked = True
-                self._handle_actions(obj)
+                self._handle_actions(obj, mouse_pos)
                 self.clear_all_btn_clicked()
                 break
         for obj in current_objects:
@@ -486,7 +521,7 @@ class UIManager:
             config.target_y = tool.num_range(0, config.max_scroll_y, config.target_y)
             config.scroll_ys[3] = tool.update_scrolling(config.scroll_ys[3], config.target_y, smoth=0.3, max_val=config.max_scroll_y)
 
-    def _handle_actions(self, obj: all_buttons.Button | all_buttons.TextButton | all_buttons.ImageButton | all_buttons.Line):
+    def _handle_actions(self, obj: all_buttons.Button | all_buttons.TextButton | all_buttons.ImageButton | all_buttons.Line, mouse_pos):
         """專門負責處理按鈕按下後的行為"""
         # 主選單邏輯
         if config.game_state == "menu":
@@ -683,12 +718,12 @@ class UIManager:
                 config.shop_page = "survival"
                 config.update_upgrade_hub_layout()
                 self.handle_change_game_state()
-                self._sync_ui_state(obj)  # 立即更新按鈕狀態，確保切換頁面時按鈕顯示正確
+                self._sync_ui_state(obj, mouse_pos)  # 立即更新按鈕狀態，確保切換頁面時按鈕顯示正確
             if obj.name == "right":
                 config.shop_page = "combat"
                 config.update_upgrade_hub_layout()
                 self.handle_change_game_state()
-                self._sync_ui_state(obj)
+                self._sync_ui_state(obj, mouse_pos)
             if obj.name == "back_upg_hub":
                 config.game_state = "menu"
             if obj.name.startswith("upgrade_p"):
@@ -705,7 +740,8 @@ class UIManager:
                 else:
                     cfg = config.UPGRADE_SURVIVAL[config.game_state]
 
-                lvl = config.current_levels[config.game_state]
+                skill_data = config.current_levels[config.game_state]
+                lvl = skill_data["max_lv"]
                 costs = cfg["costs"]
                 if lvl < cfg["limits"][config.select_world]:
                     cost = costs[lvl]
@@ -713,7 +749,8 @@ class UIManager:
                     if config.total_points >= cost:
                         # 扣錢、升級
                         config.total_points -= cost
-                        config.current_levels[config.game_state] += 1
+                        config.current_levels[config.game_state]["max_lv"] += 1
+                        config.current_levels[config.game_state]["current_lv"] = config.current_levels[config.game_state]["max_lv"]
                         config.lv_flash_timer = 20  # 啟動文字閃爍
 
                         data_handler.save_data()  # 儲存
@@ -734,21 +771,30 @@ class UIManager:
                         config.update_skill()
 
                         # 💡 讓按鈕原地自我重新整理（把 Buy! 變回正常的 Cost 或 MAX）
-                        self._sync_ui_state(obj)
+                        self._sync_ui_state(obj, mouse_pos)
 
                     else:
                         # 錢不夠，播放錯誤音效
                         asset_manager.buy_channel.play(asset_manager.sounds["buy_error"])
                 else:
                     # 滿等(或到達選擇世界的等級上限)還硬點，噴出滿等提示
-                    if lvl >= cfg["limits"][config.select_world] and config.select_world < len(config.all_worlds_unlocked):
+                    current_limit = cfg["limits"][config.select_world]
+                    has_next_world = config.select_world < len(config.all_worlds_unlocked)
+                    next_world_limit = cfg["limits"].get(config.select_world + 1, 0)
+                    limit_is_same = next_world_limit == current_limit
+                    is_max_level = lvl >= cfg["limits"][config.select_world]
+                    if is_max_level and has_next_world and limit_is_same:
                         asset_manager.buy_channel.play(asset_manager.sounds["buy_error"])
+                    if lvl >= current_limit:
+                        # 🌟 補上你的新防線：如果下一世界極限有變大，才提示去下一世界
+                        if next_world_limit and next_world_limit > current_limit:
+                            float_msg = f"Locked: Reach World {config.select_world + 1}"
+                        else:
+                            float_msg = "MAX LEVEL!"
+                    else:
+                        float_msg = "Upgraded!"
                     new_text = tool.FloatingText(
-                        (
-                            f"Locked: Reach World {config.select_world + 1}"
-                            if lvl >= cfg["limits"][config.select_world] and config.select_world < len(config.all_worlds_unlocked)
-                            else "MAX LEVEL!"
-                        ),
+                        float_msg,
                         250,
                         config.HEIGHT - 200,
                         tool.Colors.RED,
@@ -756,9 +802,9 @@ class UIManager:
                         size=24,
                     )
                     config.floating_texts.append(new_text)
+
             if obj.name == "back_upg":
                 config.game_state = "upgrade_hub"
-
             if obj.name == "left":
                 config.current_p_num = tool.num_range(1, self.upgrade_total_pages, config.current_p_num - 1)
                 config.game_state = f"upgrade_p{config.current_p_num}"
@@ -917,7 +963,7 @@ class UIManager:
                 config.reset_game()
                 config.game_state = "menu"
 
-    def _handle_other_events(self, events):
+    def _handle_other_events(self, events, mouse_pos):
         # 處理單次按下的快速鍵
         for event in events:
             if event.type == pygame.KEYDOWN:
@@ -947,13 +993,13 @@ class UIManager:
                         config.update_upgrade_hub_layout()
                         self.handle_change_game_state()
                         for obj in all_buttons.buttons["upgrade_hub"]:
-                            self._sync_ui_state(obj)
+                            self._sync_ui_state(obj, mouse_pos)
                     if event.key in [pygame.K_RIGHT, pygame.K_d] and config.shop_page == "survival":
                         config.shop_page = "combat"
                         config.update_upgrade_hub_layout()
                         self.handle_change_game_state()
                         for obj in all_buttons.buttons["upgrade_hub"]:
-                            self._sync_ui_state(obj)
+                            self._sync_ui_state(obj, mouse_pos)
 
                 if config.game_state.startswith("upgrade_p"):
                     if event.key == pygame.K_ESCAPE or event.key == pygame.K_BACKSPACE:
@@ -1002,7 +1048,7 @@ class UIManager:
                                 # 💡 讓按鈕原地自我重新整理（把 Buy! 變回正常的 Cost 或 MAX）
                                 obj = next((b for b in all_buttons.buttons["upgrade_p"] if b.name == "upgrade"), None)
                                 if obj is not None:
-                                    self._sync_ui_state(obj)
+                                    self._sync_ui_state(obj, mouse_pos)
 
                             else:
                                 # 錢不夠，播放錯誤音效

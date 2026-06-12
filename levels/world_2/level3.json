@@ -1,6 +1,6 @@
 {
     "level_name": "Level 3 - Obstacles!",
-    "level_mutiplier": 3.7,
+    "level_multiplier": 3.7,
     "enemies": [
         {
             "show_time": -10,

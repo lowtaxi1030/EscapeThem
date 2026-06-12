@@ -343,7 +343,7 @@ UPGRADE_SURVIVAL = {
     },
     "upgrade_p7": {
         "title": "Regen",
-        "costs": [500, 800, 1200, 2000, 3500, 4700, 6500, 8300, 10500, 12000],
+        "costs": [500, 800, 1200, 2000, 3500, 4700, 6500, 10000, 15000, 21000, 28000, 35410],
         "skills": [
             {"time": 10, "hp": 0},
             {"time": 10, "hp": 1},
@@ -361,8 +361,8 @@ UPGRADE_SURVIVAL = {
         ],
         "skill_desc": "{}",
         "limits": {
-            1: 7,  # 🌟 總共只有 9 級，直接安全拉滿
-            2: 10,
+            1: 7,
+            2: 12,
         },
     },
     "upgrade_p8": {
@@ -402,7 +402,7 @@ UPGRADE_SURVIVAL = {
         "skill_desc": "Luck x{}",
         "limits": {
             1: 12,
-            2: 14,  # 🌟 絕對上限 14 級
+            2: 14,
         },
     },
     "upgrade_p12": {
@@ -412,7 +412,7 @@ UPGRADE_SURVIVAL = {
         "skill_desc": "Coins x{}",
         "limits": {
             1: 10,
-            2: 13,  # 🌟 絕對上限 13 級
+            2: 13,
         },
     },
     "upgrade_p13": {
@@ -450,12 +450,12 @@ UPGRADE_COMBAT = {
     },
     "upgrade_p16": {
         "title": "Shoot CD",
-        "costs": [800, 2300, 4500, 5100, 7500, 12000, 15000],  # costs 長度為 7 元素
-        "skills": [500, 450, 400, 350, 300, 250, 200, 150],
+        "costs": [800, 2300, 4500, 5100, 7500, 12000, 15000, 20000, 25000],
+        "skills": [500, 450, 400, 350, 300, 250, 200, 150, 125, 100],
         "skill_desc": "CD: {}s",
         "limits": {
             1: 7,  # 🌟 絕對上限 7 級
-            2: 7,
+            2: 9,
         },
     },
     "upgrade_p17": {
@@ -492,7 +492,7 @@ UPGRADE_COMBAT = {
         "title": "Alto Shoot",
         "costs": [10000],  # costs 長度為 1 元素
         "skills": [0, 1],
-        "skill_desc": "Range: {}",
+        "skill_desc": "Can Alot Shoot: {}",
         "limits": {
             1: 1,  # 🌟 自動射擊一級即滿等
             2: 1,
@@ -501,17 +501,59 @@ UPGRADE_COMBAT = {
 }
 
 
-# a = UPGRADE_COMBAT["upgrade_p20"]["costs"]
-# b = UPGRADE_COMBAT["upgrade_p20"]["skills"]
+# a = UPGRADE_SURVIVAL["upgrade_p7"]["costs"]
+# b = UPGRADE_SURVIVAL["upgrade_p7"]["skills"]
 
 # print(len(a) + 1)  # 測試用，懶著計算
 # print(len(b))
 # print(len(a) + 1 <= len(b))
 
-print("SURVIVAL", [len(v["costs"]) for _, v in UPGRADE_SURVIVAL.items()])
-print("SURVIVAL", [len(v["skills"]) - 1 for _, v in UPGRADE_SURVIVAL.items()])
-print("COMBAT", [len(v["costs"]) for _, v in UPGRADE_COMBAT.items()])
-print("COMBAT", [len(v["skills"]) - 1 for _, v in UPGRADE_COMBAT.items()])
+# print("SURVIVAL", [len(v["costs"]) for _, v in UPGRADE_SURVIVAL.items()])
+# print("SURVIVAL", [len(v["skills"]) - 1 for _, v in UPGRADE_SURVIVAL.items()])
+# print("COMBAT", [len(v["costs"]) for _, v in UPGRADE_COMBAT.items()])
+# print("COMBAT", [len(v["skills"]) - 1 for _, v in UPGRADE_COMBAT.items()])
+
+
+def get_effect_text(cfg, target_lvl):
+    """輸入任何技能的 cfg 和一個指定的等級，回傳完美的 Effect 顯示字串"""
+
+    # 🌟 核心祕密：把原本死板的 'lvl'，換成我們傳進來的 'target_lvl' 參數！
+    now_val = cfg["skills"][target_lvl]
+
+    display_text = ""
+
+    # 1. 判斷是否為特殊格式 (字典 dict) -> 針對 Regen
+    if isinstance(now_val, dict):
+        hp = now_val.get("hp", 0)
+        time = now_val.get("time", 10)
+        if hp == 0:
+            display_text = "No Regen"
+        else:
+            display_text = f"+{hp} HP / {time}s"
+
+    # 2. 判斷是否為定格式
+    elif get_key("upgrade_p15", cfg):
+        display_text = f"Can Shoot: {bool(now_val)}"
+
+    elif get_key("upgrade_p16", cfg):
+        display_text = f"CD: {now_val / 1000}s"
+
+    # 3. 普通數字
+    else:
+        if (any([get_key("upgrade_p16", cfg), get_key("upgrade_p17", cfg), get_key("upgrade_p18", cfg)])
+            and not can_shoot):
+            display_text = "You Had Not Buy 'Can Shoot'"
+        else:
+            display_text = cfg["skill_desc"].format(now_val)
+
+    # 4. 針對 Regen 的特殊補強
+    if "upgrade_p7" in UPGRADE_SURVIVAL and cfg == UPGRADE_SURVIVAL["upgrade_p7"]:
+        display_text = f"Regen: {display_text}"
+
+    # 🌟 最後老老實實把這行字串回傳出去，不要在這裡 draw
+    return display_text
+
+
 
 player_skins = {
     # --- Common (一般) ---

@@ -284,7 +284,7 @@ buttons = {
         TextButton(
             name="upgrade",
             text="",  # 因應不同升級項目，文字會由 sync 更新
-            rect=pygame.Rect(0, 280, 350, 60),
+            rect=pygame.Rect(0, 260, 350, 60),
             button_color=Colors.YELLOW,
             text_color=Colors.BLACK,
             font_size=24,
@@ -301,7 +301,7 @@ buttons = {
         ),
         Button(
             name="slider",
-            rect=pygame.Rect(500, 437, 20, 40),
+            rect=pygame.Rect(530, 437, 20, 40),
             normal_color=Colors.RED,
             border_radius=10
         ),

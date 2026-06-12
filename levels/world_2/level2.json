@@ -1,6 +1,6 @@
 {
     "level_name": "Level 2 - Split and split",
-    "level_mutiplier": 3.5,
+    "level_multiplier": 3.5,
     "enemies": [
         {
             "show_time": -10,

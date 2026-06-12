@@ -1,6 +1,6 @@
 {
     "level_name": "Level 4 - Is This a Mase?",
-    "level_mutiplier": 4.0,
+    "level_multiplier": 4.0,
     "enemies": [
         {
             "show_time": -10,
@@ -68,7 +68,10 @@
             "slow_speed": 2,
             "color": "RED",
             "damage": 15,
-            "type": "chaser",
+            "type": [
+                "chaser",
+                "split"
+            ],
             "size": 5
         },
         {
