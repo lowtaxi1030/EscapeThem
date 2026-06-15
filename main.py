@@ -53,7 +53,7 @@ else:
 
 def check_data(path):
     """檢查存檔版本，並在需要時進行遷移"""
-    if old_to_new.cheak_version(path):
+    while old_to_new.cheak_version(path):
         print("⚠️ 發現舊版本存檔，正在嘗試遷移格式...")
         old_to_new.migrate_save_format(path)
 

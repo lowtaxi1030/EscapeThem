@@ -98,7 +98,7 @@ def save_data():
             "gm_i": config.gm_i,
             "has_buy_crazy": config.has_buy_crazy,
             "levels_unlocked": config.all_worlds_unlocked,  # 存入完整的字典
-            "save_game_version": 4,  # 標記存檔版本，方便未來升級
+            "save_game_version": config.SAVE_VERSION,  # 標記存檔版本，方便未來升級
             "select_world": config.select_world,
             "worlds_unlocked": config.worlds_unlocked,
         }
