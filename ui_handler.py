@@ -318,18 +318,18 @@ class UIManager:
                     obj.org_rect.centerx = tool.num_range(120, 580, mouse_pos[0])
                     offset = obj.org_rect.centerx - 120
                     percentage = offset / track_width
-                    calculated_lv = round(percentage * current_limit)
+                    calculated_lv = round(percentage * lvl)
                     config.current_levels[config.game_state]["current_lv"] = calculated_lv
                 else:
                     # 玩家沒有按住滑桿時
                     current_game_lvl = current_lvl
 
                     # 🛡️ 安全鎖：防止存檔等級超過上限導致球球飛出去
-                    current_game_lvl = min(current_game_lvl, current_limit)
+                    current_game_lvl = min(current_game_lvl, lvl)
 
                     # 反推它天經地義應該要停靠的 X 座標
-                    lvl_percentage = current_game_lvl / current_limit
-                    ideal_x = 120 + (lvl_percentage * track_width)
+                    lvl_percentage = current_game_lvl / lvl if lvl != 0 else 1
+                    ideal_x = 120 + (lvl_percentage * track_width)  # ^防止Zero Division
 
                     # 讓球球直接校準過去！
                     obj.org_rect.centerx = ideal_x
